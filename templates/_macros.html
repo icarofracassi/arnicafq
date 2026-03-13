@@ -1,0 +1,376 @@
+{#
+  Avatar macro — include this in templates with:
+    {% from "_macros.html" import avatar %}
+
+  Usage:
+    {{ avatar(person_id, person_name, size=40) }}
+
+  Shows photo if available, otherwise initials in a colored circle.
+#}
+
+{% macro avatar(person_id, name, size=40, css_class="") %}
+    {% set photo = photo_url(person_id) %}
+    {% set initials = (name.split()[0][0] + name.split()[-1][0]) | upper if name and name.split()|length > 1 else (name[0] | upper if name else '?') %}
+    {% set colors = ['#e74c3c','#e67e22','#f1c40f','#2ecc71','#1abc9c','#3498db','#9b59b6','#e91e63'] %}
+    {% set color_idx = (person_id or 0) % colors|length %}
+    {% set bg = colors[color_idx] %}
+    <span class="avatar-wrap {{ css_class }}"
+          style="width:{{ size }}px;height:{{ size }}px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;font-size:{{ (size * 0.38) | int }}px;font-weight:700;color:#fff;background:{{ bg }};">
+        {% if photo %}
+            <img src="{{ photo }}" alt="{{ name }}"
+                 style="width:100%;height:100%;object-fit:cover;border-radius:50%;">
+        {% else %}
+            {{ initials }}
+        {% endif %}
+    </span>
+{% endmacro %}
+
+
+{# ============================================================
+   event_timeline — shared timeline block for game.html and events.html
+
+   Parameters:
+     events        — list of event dicts from the route
+     youtube_embed — embed URL string or None/''
+     editable      — True on events page (shows edit/delete buttons)
+     filter_id     — id attribute for the filters bar (default: "timeline-filters")
+     timeline_id   — id attribute for the timeline container (default: "event-timeline")
+#}
+{% macro event_timeline(events, youtube_embed, editable=False, filter_id="timeline-filters", timeline_id="event-timeline") %}
+    {# Always render the filter bar + search + container so JS can append rows even when initially empty #}
+    <div class="mb-2" id="{{ filter_id }}-wrap">
+        <div class="d-flex flex-wrap gap-1 mb-1" id="{{ filter_id }}"{% if not events %} style="display:none!important"{% endif %}>
+            <button class="btn btn-xs btn-danger active"          data-filter="all">All</button>
+            <button class="btn btn-xs btn-outline-success"        data-filter="goal">⚽ Goals</button>
+            <button class="btn btn-xs btn-outline-warning"        data-filter="highlight">⭐ Highlights</button>
+            <button class="btn btn-xs btn-outline-secondary"      data-filter="substitution">🔄 Subs</button>
+            <button class="btn btn-xs btn-outline-secondary"      data-filter="foul">🦵 Fouls</button>
+            <button class="btn btn-xs btn-outline-info"           data-filter="team_change">👥 Team</button>
+            <button class="btn btn-xs btn-outline-danger"         data-filter="injury">🩹 Injuries</button>
+            <button class="btn btn-xs btn-outline-primary"        data-filter="player_join">➕ Join</button>
+            <button class="btn btn-xs btn-outline-secondary"      data-filter="player_leave">➖ Leave</button>
+        </div>
+        <div class="input-group input-group-sm" id="{{ filter_id }}-search"{% if not events %} style="display:none!important"{% endif %}>
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted" style="font-size:0.7rem"></i></span>
+            <input type="text" class="form-control border-start-0 ps-0"
+                   id="{{ filter_id }}-search-input"
+                   placeholder="Search events…"
+                   autocomplete="off">
+        </div>
+    </div>
+    {% if not events %}
+        <div class="text-center text-muted py-5" id="empty-msg">
+            <i class="bi bi-clock-history" style="font-size:2rem"></i>
+            <p class="mt-2 mb-0">No events logged yet.</p>
+        </div>
+    {% endif %}
+    <div class="{{ 'event-timeline' if not editable else '' }} px-0 pt-1 pb-1" id="{{ timeline_id }}">
+            {% for event in events %}
+                {% set search_text = [
+                    event.type,
+                    event.person_name or '',
+                    event.notes or '',
+                    event.team_name or '',
+                    (event.substitution.player_on_name  if event.substitution else ''),
+                    (event.substitution.player_off_name if event.substitution else ''),
+                    (event.team_change.staying_color    if event.team_change  else ''),
+                    (event.team_change.entering_color   if event.team_change  else ''),
+                    (event.team_change.leaving_color    if event.team_change  else ''),
+                    (event.player_join.team_color       if event.player_join  else ''),
+                ] | join(' ') | lower %}
+                <div class="event-row" data-type="{{ event.type }}"
+                     data-search="{{ search_text }}"
+                     {% if editable %}data-event-id="{{ event.id }}" data-event-type="{{ event.type }}"{% endif %}>
+
+                    <!-- Timestamp -->
+                    <span class="event-timestamp">
+                        {% set h, m, s = event.timestamp.split(':') %}
+                        {% set ts = h|int * 3600 + m|int * 60 + s|int %}
+                        {% if youtube_embed %}
+                            <span class="font-monospace text-primary" style="cursor:pointer"
+                                  onclick="seekTo({{ ts }})" title="Jump to {{ event.timestamp }}">
+                                {{ event.timestamp }}
+                            </span>
+                        {% else %}
+                            <span class="font-monospace text-muted">{{ event.timestamp }}</span>
+                        {% endif %}
+                    </span>
+
+                    <!-- Type badge -->
+                    <span class="badge event-type-badge badge-{{ event.type }} text-white">{{ event.type }}</span>
+
+                    <!-- Content -->
+                    <span class="flex-grow-1 small">
+                        {% if event.type == "team_change" and event.team_change %}
+                            <span style="width:10px;height:10px;border-radius:50%;background:{{ event.team_change.leaving_color }};display:inline-block;border:1px solid rgba(0,0,0,0.15)"></span>
+                            <span class="text-capitalize text-muted">{{ event.team_change.leaving_color }}</span>
+                            <i class="bi bi-arrow-right text-muted mx-1" style="font-size:0.7rem"></i>
+                            <span style="width:10px;height:10px;border-radius:50%;background:{{ event.team_change.entering_color }};display:inline-block;border:1px solid rgba(0,0,0,0.15)"></span>
+                            <span class="text-capitalize text-muted">{{ event.team_change.entering_color }}</span>
+                            <span class="text-muted mx-2">·</span>
+                            <span style="width:10px;height:10px;border-radius:50%;background:{{ event.team_change.staying_color }};display:inline-block;border:1px solid rgba(0,0,0,0.15)"></span>
+                            <span class="text-capitalize fw-semibold">{{ event.team_change.staying_color }}</span>
+                            <span class="text-muted mx-1">vs</span>
+                            <span style="width:10px;height:10px;border-radius:50%;background:{{ event.team_change.entering_color }};display:inline-block;border:1px solid rgba(0,0,0,0.15)"></span>
+                            <span class="text-capitalize fw-semibold">{{ event.team_change.entering_color }}</span>
+                        {% elif event.type == "substitution" and event.substitution %}
+                            <span style="width:8px;height:8px;border-radius:50%;background:{{ event.substitution.team_color }};display:inline-block;border:1px solid rgba(0,0,0,0.15)"></span>
+                            {% if event.substitution.is_goalkeeper_swap %}
+                                <i class="bi bi-shield text-muted"></i>
+                                <span class="text-muted">{{ event.substitution.player_off_name }}</span>
+                                <span class="text-muted mx-1">→</span>
+                                <i class="bi bi-shield-fill text-warning"></i>
+                                <span class="fw-semibold">{{ event.substitution.player_on_name }}</span>
+                            {% else %}
+                                <span class="text-danger">↓ {{ event.substitution.player_off_name }}</span>
+                                <span class="text-muted mx-1">·</span>
+                                <span class="text-success">↑ {{ event.substitution.player_on_name }}</span>
+                            {% endif %}
+                        {% elif event.type == "game_start" %}
+                            <span class="text-success fw-semibold">Game started</span>
+                        {% elif event.type == "player_join" and event.player_join %}
+                            <div class="d-flex align-items-center gap-2">
+                                {{ avatar(event.person_id, event.person_name, size=22) }}
+                                <a href="/player/{{ event.person_id }}" class="text-decoration-none fw-semibold">{{ event.person_name }}</a>
+                                <span class="text-muted small">joined</span>
+                                <span class="badge text-capitalize" style="background:{{ event.player_join.team_color }};font-size:0.7rem">{{ event.player_join.team_color }}</span>
+                                {% if event.player_join.is_goalkeeper %}
+                                    <span class="badge ms-1" style="background:#fff3cd;color:#856404;font-size:0.6rem;border:1px solid #ffd666">GK</span>
+                                {% endif %}
+                            </div>
+                        {% elif event.type == "player_leave" %}
+                            <div class="d-flex align-items-center gap-2">
+                                {{ avatar(event.person_id, event.person_name, size=22) }}
+                                <a href="/player/{{ event.person_id }}" class="text-decoration-none fw-semibold">{{ event.person_name }}</a>
+                                <span class="text-muted small">left the game</span>
+                            </div>
+                        {% elif event.person_name %}
+                            <div class="d-flex align-items-center gap-2">
+                                {{ avatar(event.person_id, event.person_name, size=22) }}
+                                <a href="/player/{{ event.person_id }}" class="text-decoration-none fw-semibold">
+                                    {{ event.person_name }}
+                                </a>
+                                {% for link in event.links %}
+                                    <span class="text-muted">
+                                        <i class="bi bi-arrow-return-right"></i>
+                                        {{ link.link_type }}: {{ link.name }}
+                                    </span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </span>
+
+                    <!-- Notes -->
+                    {% if event.notes %}
+                        <span class="text-muted small fst-italic">{{ event.notes }}</span>
+                    {% endif %}
+
+                    <!-- Edit / Delete (events page only) -->
+                    {% if editable %}
+                        <span class="event-actions ms-1 d-flex gap-1" style="flex-shrink:0">
+                            {% if event.type not in ['substitution', 'team_change', 'player_join', 'player_leave', 'game_start'] %}
+                                <button class="btn btn-link btn-sm p-0 text-secondary" title="Edit"
+                                        onclick="startEdit({{ event.id }})">
+                                    <i class="bi bi-pencil" style="font-size:0.7rem"></i>
+                                </button>
+                            {% endif %}
+                            <button class="btn btn-link btn-sm p-0 text-danger" title="Delete"
+                                    onclick="deleteEvent({{ event.id }}, this)">
+                                <i class="bi bi-trash" style="font-size:0.7rem"></i>
+                            </button>
+                        </span>
+                    {% endif %}
+
+                </div>
+            {% endfor %}
+        </div>
+{% endmacro %}
+
+
+{# ============================================================
+   roster_sidebar_html — shared roster sidebar inner HTML
+   (the card shell differs between pages, so this only renders
+    the on-field / bench divs that JS populates)
+
+   Parameters:
+     players     — initial player list (server-side, for no-roster check)
+     compact     — True on events page (tighter padding)
+#}
+{% macro roster_sidebar_html(players, compact=False) %}
+    {% set px = "px-2" if compact else "px-3" %}
+    {% if players %}
+        <div id="on-field" class="{{ px }} pt-2">
+            <!-- Populated by updateSidebar() JS -->
+        </div>
+        <div id="bench-section" style="display:none">
+            <hr class="my-0">
+            <div class="{{ px }} pt-2 pb-2">
+                <div class="text-muted small text-uppercase fw-semibold mb-2"
+                     style="font-size:0.68rem;letter-spacing:0.05em">
+                    Bench
+                </div>
+                <div id="bench"></div>
+            </div>
+        </div>
+        <p class="text-muted small text-center py-3 mb-0" id="no-roster-msg" style="display:none">No roster yet.</p>
+    {% else %}
+        <p class="text-muted small text-center py-3 mb-0" id="no-roster-msg">No roster yet.</p>
+    {% endif %}
+{% endmacro %}
+
+
+{# ============================================================
+   timeline_filter_js — wire up filter buttons for a timeline
+   Call once per page that uses event_timeline.
+
+   Parameters:
+     filter_id   — matches the filter_id used in event_timeline
+     timeline_id — matches the timeline_id used in event_timeline
+#}
+{% macro timeline_filter_js(filter_id="timeline-filters", timeline_id="event-timeline") %}
+<script>
+(function() {
+    const filterBar    = document.getElementById('{{ filter_id }}');
+    const searchWrap   = document.getElementById('{{ filter_id }}-search');
+    const searchInput  = document.getElementById('{{ filter_id }}-search-input');
+    const timeline     = document.getElementById('{{ timeline_id }}');
+    const emptyMsg     = document.getElementById('empty-msg');
+
+    // Show filter+search bars (called when first event row is added from JS)
+    window._tlShowControls_{{ timeline_id | replace("-","_") }} = function() {
+        if (filterBar)   filterBar.style.removeProperty('display');
+        if (searchWrap)  searchWrap.style.removeProperty('display');
+        if (emptyMsg)    emptyMsg.style.display = 'none';
+    };
+
+    function applyFilters() {
+        const activeBtn = document.querySelector('#{{ filter_id }} [data-filter].active');
+        const filter    = activeBtn ? activeBtn.dataset.filter : 'all';
+        const query     = searchInput ? searchInput.value.trim().toLowerCase() : '';
+        document.querySelectorAll('#{{ timeline_id }} .event-row').forEach(row => {
+            const typeOk   = filter === 'all' || row.dataset.type === filter;
+            const searchOk = !query || (row.dataset.search || row.textContent.toLowerCase()).includes(query);
+            row.style.display = (typeOk && searchOk) ? '' : 'none';
+        });
+    }
+
+    // Filter buttons
+    document.querySelectorAll('#{{ filter_id }} [data-filter]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('#{{ filter_id }} [data-filter]').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            applyFilters();
+        });
+    });
+
+    // Search input
+    if (searchInput) {
+        searchInput.addEventListener('input', applyFilters);
+    }
+})();
+</script>
+{% endmacro %}
+
+
+
+
+{# ============================================================
+   game_header — top bar shown on all game setup steps
+
+   Shows game title, date, location and quick action buttons.
+   On step 1 (new game), game is None so only a generic title shows.
+#}
+{% macro game_header(game=None) %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+        <a href="/games" class="text-muted small text-decoration-none">
+            <i class="bi bi-arrow-left"></i> All Games
+        </a>
+        {% if game %}
+            <h2 class="mt-1 mb-0">{{ game.title }}</h2>
+            <div class="text-muted small">
+                {% if game.date %}<i class="bi bi-calendar3"></i> {{ game.date }}{% endif %}
+                {% if game.date and game.location %}&nbsp;·&nbsp;{% endif %}
+                {% if game.location %}<i class="bi bi-geo-alt"></i> {{ game.location }}{% endif %}
+            </div>
+        {% else %}
+            <h2 class="mt-1 mb-0">New Game</h2>
+        {% endif %}
+    </div>
+    {% if game %}
+        <div class="d-flex gap-2">
+            <a href="/games/{{ game.id }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-eye"></i> View
+            </a>
+            <a href="/games/{{ game.id }}/events" class="btn btn-sm btn-outline-danger">
+                <i class="bi bi-play-circle"></i> Log Events
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{# ============================================================
+   game_steps — shared step indicator for the game registration flow
+
+   Parameters:
+     current  — active step number (1–6)
+     game_id  — game id (None on step 1 / new game)
+
+   Steps:
+     1 = Game Info   (/games/<id>/edit    or /games/register)
+     2 = Teams       (/games/<id>/teams)
+     3 = Attendance  (/games/<id>/attendance)
+     4 = Presences   (/games/<id>/presences)
+     5 = Roster      (/games/<id>/roster)
+     6 = Events      (/games/<id>/events)
+#}
+{% macro game_steps(current, game_id=None, done=()) %}
+{#
+  done — iterable of step numbers that have been completed (have data).
+         Steps in done are always clickable, even if num > current.
+         Steps < current are always treated as done (implied by flow).
+#}
+{% set steps = [
+    (1, "Game Info",   game_id | string + "/edit"       if game_id else None),
+    (2, "Teams",       game_id | string + "/teams"      if game_id else None),
+    (3, "Attendance",  game_id | string + "/attendance" if game_id else None),
+    (4, "Presences",   game_id | string + "/presences"  if game_id else None),
+    (5, "Roster",      game_id | string + "/roster"     if game_id else None),
+    (6, "Events",      game_id | string + "/events"     if game_id else None),
+] %}
+<div class="d-flex align-items-center gap-2 mb-4 text-muted small flex-wrap">
+    {% for num, label, path in steps %}
+        {% set is_done = (num < current) or (num in done) %}
+        {% set is_current = (num == current) %}
+        {% set is_clickable = is_done and path and (num != current) %}
+
+        {% if is_current %}
+            {# Active step — red, not a link #}
+            <span class="d-inline-flex align-items-center gap-1 fw-semibold text-danger">
+                <span class="badge bg-danger text-white">{{ num }}</span>
+                <span class="d-none d-sm-inline">{{ label }}</span>
+            </span>
+        {% elif is_clickable %}
+            {# Completed or filled — green check, clickable #}
+            <a href="/games/{{ path }}"
+               class="d-inline-flex align-items-center gap-1 text-decoration-none text-success fw-semibold"
+               title="Go to {{ label }}">
+                <span class="badge bg-success text-white"><i class="bi bi-check"></i></span>
+                <span class="d-none d-sm-inline">{{ label }}</span>
+            </a>
+        {% else %}
+            {# Future, not yet filled — grey, not clickable #}
+            <span class="d-inline-flex align-items-center gap-1 text-muted">
+                <span class="badge bg-light text-muted border">{{ num }}</span>
+                <span class="d-none d-sm-inline">{{ label }}</span>
+            </span>
+        {% endif %}
+        {% if not loop.last %}
+            <i class="bi bi-chevron-right text-muted" style="font-size:0.65rem"></i>
+        {% endif %}
+    {% endfor %}
+</div>
+{% endmacro %}

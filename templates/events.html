@@ -1,0 +1,1107 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import avatar, game_header, event_timeline, roster_sidebar_html, timeline_filter_js, game_steps %}
+
+{% block title %}Events – {{ game.title }}{% endblock %}
+
+{% block main %}
+
+<!-- Step indicator -->
+        {{ game_header(game) }}
+{{ game_steps(6, game.id, done=steps_done) }}
+
+<!-- Full-width video -->
+<div class="card shadow-sm mb-3">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-youtube text-danger"></i> {{ game.title }}</span>
+        <div class="d-flex align-items-center gap-3">
+            <div id="segment-banner">
+                {% if active_segment %}
+                    <div class="d-flex align-items-center gap-2 small">
+                        <span style="width:10px;height:10px;border-radius:50%;background:{{ active_segment.team_a_color }};border:1px solid rgba(0,0,0,0.15)"></span>
+                        <span class="text-capitalize fw-semibold">{{ active_segment.team_a_color }}</span>
+                        <span class="text-muted">vs</span>
+                        <span style="width:10px;height:10px;border-radius:50%;background:{{ active_segment.team_b_color }};border:1px solid rgba(0,0,0,0.15)"></span>
+                        <span class="text-capitalize fw-semibold">{{ active_segment.team_b_color }}</span>
+                    </div>
+                {% endif %}
+            </div>
+            <span class="text-muted small">{{ game.date }} · {{ game.location }}</span>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if youtube_embed %}
+            <div class="ratio ratio-16x9">
+                <iframe id="yt-player"
+                        src="{{ youtube_embed }}"
+                        title="Game video"
+                        frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        referrerpolicy="strict-origin-when-cross-origin"
+                        allowfullscreen>
+                </iframe>
+            </div>
+        {% else %}
+            <div class="d-flex align-items-center justify-content-center text-muted py-5">
+                <div class="text-center">
+                    <i class="bi bi-camera-video-off" style="font-size:2.5rem"></i>
+                    <p class="mt-2">No video linked to this game.</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Segment strip (same as game page) -->
+{% if segments %}
+<div class="seg-strip mb-2" id="seg-strip">
+    {% if game_start_event %}
+        {% set gs_parts = game_start_event.timestamp.split(':') %}
+        {% set gs_secs  = gs_parts[0]|int * 3600 + gs_parts[1]|int * 60 + gs_parts[2]|int %}
+        <!-- Warmup chip: from 0 to game_start -->
+        <div class="seg-chip seg-chip-warmup" id="seg-chip-warmup"
+             data-start="0"
+             data-end="{{ gs_secs }}"
+             {% if youtube_embed %}onclick="seekTo(0)" style="cursor:pointer"{% endif %}
+             title="Warmup · 00:00:00 → {{ game_start_event.timestamp }}">
+            <span style="font-size:0.8rem">⏱</span>
+            <span class="seg-score" style="font-size:0.75rem;font-weight:600;color:#6c757d">Warmup</span>
+        </div>
+    {% else %}
+        <!-- No game start yet — show warmup as the only chip -->
+        <div class="seg-chip seg-chip-warmup active" id="seg-chip-warmup"
+             data-start="0"
+             data-end="999999"
+             title="Warmup — log Game Start to begin">
+            <span style="font-size:0.8rem">⏱</span>
+            <span class="seg-score" style="font-size:0.75rem;font-weight:600;color:#6c757d">Warmup</span>
+        </div>
+    {% endif %}
+    {% for seg in segments %}
+        {% set start_parts = seg.started_at.split(':') %}
+        {% set start_secs  = start_parts[0]|int * 3600 + start_parts[1]|int * 60 + start_parts[2]|int %}
+        <div class="seg-chip" id="seg-chip-{{ loop.index0 }}"
+             data-start="{{ start_secs }}"
+             data-end="{% if seg.ended_at %}{{ seg.ended_at.split(':')[0]|int * 3600 + seg.ended_at.split(':')[1]|int * 60 + seg.ended_at.split(':')[2]|int }}{% else %}999999{% endif %}"
+             {% if youtube_embed %}onclick="seekTo({{ start_secs }})" style="cursor:pointer"{% endif %}
+             title="{{ seg.team_a_color }} vs {{ seg.team_b_color }} · {{ seg.started_at }}">
+            <span class="seg-dot" style="background:{{ seg.team_a_color }}"></span>
+            <span class="seg-score">{{ seg.score_a }}–{{ seg.score_b }}</span>
+            <span class="seg-dot" style="background:{{ seg.team_b_color }}"></span>
+        </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Three columns: Form | Timeline | Roster -->
+<div class="row g-3" style="height: calc(100vh - 440px); min-height: 420px;">
+
+    <!-- LEFT: Event form -->
+    <div class="col-md-4 d-flex flex-column">
+        <div class="card shadow-sm flex-grow-1">
+            <div class="card-header bg-white py-2">
+                <i class="bi bi-plus-circle"></i> <span id="form-title">Log Event</span>
+            </div>
+            <div class="card-body overflow-auto">
+                <form id="event-form">
+                    <input type="hidden" id="edit-event-id" value="">
+
+                    <div class="row g-2 mb-2">
+                        <div class="col-5">
+                            <label class="form-label small fw-semibold mb-1">Timestamp</label>
+                            <div class="input-group input-group-sm">
+                                <input class="form-control font-monospace"
+                                       id="timestamp" name="timestamp"
+                                       pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}"
+                                       placeholder="00:00:00" required type="text">
+                                {% if youtube_embed %}
+                                    <button class="btn btn-outline-secondary" id="grab-time" title="Grab current time" type="button">
+                                        <i class="bi bi-stopwatch"></i>
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-7">
+                            <label class="form-label small fw-semibold mb-1">Type</label>
+                            <select class="form-select form-select-sm" id="event-type" name="type" required>
+                                <option value="" disabled selected>Select type...</option>
+                                {% if not game_start_event %}
+                                <option value="game_start">🟢 Game Start</option>
+                                {% endif %}
+                                <option value="goal"         {% if not game_start_event %}disabled{% endif %}>⚽ Goal</option>
+                                <option value="injury"       {% if not game_start_event %}disabled{% endif %}>🤕 Injury</option>
+                                <option value="highlight"    {% if not game_start_event %}disabled{% endif %}>⭐ Highlight</option>
+                                <option value="foul"         {% if not game_start_event %}disabled{% endif %}>🦵 Foul</option>
+                                <option value="substitution" {% if not game_start_event %}disabled{% endif %}>🔄 Substitution</option>
+                                <option value="team_change"  {% if not game_start_event %}disabled{% endif %}>👥 Team Change</option>
+                                <option value="player_join"  {% if not game_start_event %}disabled{% endif %}>➕ Player Join</option>
+                                <option value="player_leave" {% if not game_start_event %}disabled{% endif %}>➖ Player Leave</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Player -->
+                    <div class="mb-2" id="player-row">
+                        <label class="form-label small fw-semibold mb-1">Player</label>
+                        <select class="form-select form-select-sm" name="person_id" id="person-select">
+                            <option value="">— No specific player —</option>
+                            {% set ns = namespace(current_team='__none__') %}
+                            {% for player in players %}
+                                {% if player.team_color != ns.current_team %}
+                                    {% if ns.current_team != '__none__' %}</optgroup>{% endif %}
+                                    <optgroup label="{{ player.team_color | upper if player.team_color else 'NO TEAM' }}">
+                                    {% set ns.current_team = player.team_color %}
+                                {% endif %}
+                                <option value="{{ player.id }}">{{ player.name }}{% if player.nickname %} ({{ player.nickname }}){% endif %}</option>
+                            {% endfor %}
+                            {% if players %}</optgroup>{% endif %}
+                        </select>
+                    </div>
+
+                    <!-- Link row -->
+                    <div class="mb-2" id="link-row" style="display:none">
+                        <div class="row g-2">
+                            <div class="col-5">
+                                <label class="form-label small fw-semibold mb-1">Link type</label>
+                                <select class="form-select form-select-sm" id="link-type-select" name="link_type" onchange="toggleCustomLinkType(this)">
+                                    <option value="">— None —</option>
+                                    <option value="assist">assist</option>
+                                    <option value="featured">featured</option>
+                                    <option value="foul_on">foul_on</option>
+                                    <option value="custom">custom...</option>
+                                </select>
+                            </div>
+                            <div class="col-5" id="custom-link-wrap" style="display:none">
+                                <label class="form-label small fw-semibold mb-1">Custom</label>
+                                <input class="form-control form-control-sm" id="custom-link-type" type="text" placeholder="e.g. header_off">
+                            </div>
+                            <div class="col-7">
+                                <label class="form-label small fw-semibold mb-1">Linked player</label>
+                                <select class="form-select form-select-sm" name="linked_person_id">
+                                    <option value="">— None —</option>
+                                    {% for player in players %}
+                                        <option value="{{ player.id }}">{{ player.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Substitution — all_players, not just on-field -->
+                    <div class="mb-2" id="substitution-row" style="display:none">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold mb-1">Player off</label>
+                                <select class="form-select form-select-sm" name="player_off_id">
+                                    <option value="">Select...</option>
+                                    {% for p in all_players %}
+                                        <option value="{{ p.id }}">{{ p.name }}{% if p.nickname %} ({{ p.nickname }}){% endif %}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold mb-1">Player on</label>
+                                <select class="form-select form-select-sm" name="player_on_id">
+                                    <option value="">Select...</option>
+                                    {% for p in all_players %}
+                                        <option value="{{ p.id }}">{{ p.name }}{% if p.nickname %} ({{ p.nickname }}){% endif %}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mt-2 d-flex align-items-center gap-2">
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" name="is_goalkeeper_swap"
+                                       id="gk-swap-toggle" value="1" onchange="toggleGkSwap(this)">
+                                <label class="form-check-label small" for="gk-swap-toggle">
+                                    <i class="bi bi-shield-fill text-warning"></i> Goalkeeper change
+                                </label>
+                            </div>
+                            <span class="text-muted" id="gk-swap-hint" style="display:none;font-size:0.72rem">
+                                Both stay — only GK role swaps.
+                            </span>
+                        </div>
+                        <div class="text-muted mt-1" id="sub-hint" style="font-size:0.72rem">
+                            <i class="bi bi-info-circle"></i> Teams swap automatically.
+                        </div>
+                    </div>
+
+                    <!-- Team change -->
+                    <div class="mb-2" id="team-change-row" style="display:none">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold mb-1">Team leaving</label>
+                                <select class="form-select form-select-sm" name="leaving_team_id">
+                                    <option value="">Select...</option>
+                                    {% for team in teams %}
+                                        <option value="{{ team.id }}">{{ team.color }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small fw-semibold mb-1">Team entering</label>
+                                <select class="form-select form-select-sm" name="entering_team_id">
+                                    <option value="">Select...</option>
+                                    {% for team in teams %}
+                                        <option value="{{ team.id }}">{{ team.color }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Player Join: pick team -->
+                    <div class="mb-2" id="player-join-row" style="display:none">
+                        <div class="mb-2">
+                            <label class="form-label small fw-semibold mb-1">Player joining</label>
+                            <select class="form-select form-select-sm" name="join_person_id" id="join-person-select">
+                                <option value="">Select player...</option>
+                                {% for person in all_players %}
+                                    <option value="{{ person.id }}">{{ person.name }}{% if person.nickname %} ({{ person.nickname }}){% endif %}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-7">
+                                <label class="form-label small fw-semibold mb-1">Joins team</label>
+                                <select class="form-select form-select-sm" name="join_team_id" id="join-team-select">
+                                    <option value="">Select team...</option>
+                                    {% for team in teams %}
+                                        <option value="{{ team.id }}">{{ team.color }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-5 d-flex align-items-end pb-1">
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" name="join_is_goalkeeper"
+                                           id="join-gk-toggle" value="1">
+                                    <label class="form-check-label small" for="join-gk-toggle">
+                                        <i class="bi bi-shield-fill text-warning"></i> GK
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="mb-2">
+                        <input class="form-control form-control-sm" name="notes" placeholder="Notes (optional)" type="text">
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-danger btn-sm flex-grow-1" type="submit" id="submit-btn">
+                            <i class="bi bi-plus-lg"></i> Add Event
+                        </button>
+                        <button class="btn btn-outline-secondary btn-sm" type="button"
+                                id="cancel-edit-btn" style="display:none" onclick="cancelEdit()">
+                            Cancel
+                        </button>
+                        <a href="/games/{{ game.id }}" class="btn btn-outline-secondary btn-sm" id="done-btn">
+                            Done <i class="bi bi-check-lg"></i>
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MIDDLE: Timeline -->
+    <div class="col-md-5 d-flex flex-column" style="overflow:hidden;">
+        <div class="card shadow-sm flex-grow-1" style="overflow:hidden;">
+            <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <span><i class="bi bi-list-ul"></i> Timeline
+                <span class="badge bg-secondary ms-1" id="event-count">{{ events | length }}</span></span>
+            </div>
+            <div class="card-body p-0 px-3 pt-2" style="overflow-y:auto;height:100%;">
+                {{ event_timeline(events, youtube_embed, editable=True, filter_id="timeline-filters", timeline_id="timeline") }}
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: Roster sidebar -->
+    <div class="col-md-3 d-flex flex-column" style="overflow:hidden;">
+        <div class="card shadow-sm flex-grow-1" style="overflow:hidden;">
+            <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-people"></i> Roster</span>
+                {% if youtube_embed %}
+                    <button class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="syncNow()" title="Sync to current time">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                {% endif %}
+            </div>
+            <div class="card-body p-0" style="overflow-y:auto;height:100%;">
+                {{ roster_sidebar_html(players, compact=True) }}
+            </div>
+        </div>
+    </div>
+
+</div>
+
+{{ timeline_filter_js(filter_id="timeline-filters", timeline_id="timeline") }}
+<script>
+    const gameId  = {{ game.id }};
+    const ytEmbed = "{{ youtube_embed or '' }}";
+    let ytPlayer;
+    let syncInterval = null;
+
+    // ── Roster timeline ───────────────────────────────────────
+    let rosterTimeline = {{ roster_timeline_json | safe }};
+    let lastSnapshotKey = null;
+
+    const segments = [
+        {% for seg in segments %}
+        {
+            team_a_id:  {{ seg.team_a_id }},
+            team_b_id:  {{ seg.team_b_id }},
+            started_at: "{{ seg.started_at }}",
+            ended_at:   "{{ seg.ended_at or '' }}"
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    function timeToSecs(t) {
+        if (!t) return Infinity;
+        const [h, m, s] = t.split(':').map(Number);
+        return h * 3600 + m * 60 + s;
+    }
+
+    function getSnapshotAt(currentSecs) {
+        const tss = rosterTimeline.timestamps;
+        if (!tss || !tss.length) return null;
+        let lo = 0, hi = tss.length - 1, result = null;
+        while (lo <= hi) {
+            const mid = (lo + hi) >> 1;
+            if (timeToSecs(tss[mid]) <= currentSecs) { result = tss[mid]; lo = mid + 1; }
+            else hi = mid - 1;
+        }
+        return result ? rosterTimeline.snapshots[result] : null;
+    }
+
+    function getActiveTeams(currentSecs) {
+        for (const seg of segments) {
+            const start = timeToSecs(seg.started_at);
+            const end   = seg.ended_at ? timeToSecs(seg.ended_at) : Infinity;
+            if (currentSecs >= start && currentSecs < end) return [seg.team_a_id, seg.team_b_id];
+        }
+        if (segments.length) {
+            const last = segments[segments.length - 1];
+            return [last.team_a_id, last.team_b_id];
+        }
+        return null;
+    }
+
+    // ── Roster animation CSS (injected once) ──────────────────
+    (function injectRosterStyles() {
+        const s = document.createElement('style');
+        s.textContent = `
+            .player-entry { position: relative; }
+            .player-entry.entering { animation: playerIn 0.4s ease forwards; }
+            .player-entry.leaving  { animation: playerOut 0.35s ease forwards; pointer-events: none; }
+            @keyframes playerIn {
+                from { opacity: 0; transform: translateX(-12px); background: rgba(40,167,69,0.15); }
+                60%  { background: rgba(40,167,69,0.08); }
+                to   { opacity: 1; transform: translateX(0); background: transparent; }
+            }
+            @keyframes playerOut {
+                from { opacity: 1; transform: translateX(0); background: transparent; }
+                40%  { background: rgba(220,53,69,0.12); }
+                to   { opacity: 0; transform: translateX(12px); background: rgba(220,53,69,0.06); }
+            }
+        `;
+        document.head.appendChild(s);
+    })();
+
+    function updateRosterSidebar(currentSecs) {
+        const snapshot = getSnapshotAt(currentSecs);
+        const noMsg    = document.getElementById('no-roster-msg');
+
+        if (!snapshot || !snapshot.length) {
+            noMsg.style.display = '';
+            document.getElementById('on-field').innerHTML = '';
+            document.getElementById('bench-section').style.display = 'none';
+            return;
+        }
+        noMsg.style.display = 'none';
+
+        const key = JSON.stringify(snapshot.map(p => `${p.person_id}:${p.team_id}:${p.is_goalkeeper}`));
+        if (key === lastSnapshotKey) return;
+        lastSnapshotKey = key;
+
+        const activeTeams = getActiveTeams(currentSecs) || [...new Set(snapshot.map(p => p.team_id).filter(Boolean))];
+        const teamIds  = activeTeams;  // passed to rebuildPlayerDropdowns
+        const onField  = document.getElementById('on-field');
+        const bench    = document.getElementById('bench');
+        const benchSec = document.getElementById('bench-section');
+
+        const byTeam = {};
+        const benchPlayers = [];
+        for (const p of snapshot) {
+            if (p.team_id && activeTeams.includes(p.team_id)) {
+                if (!byTeam[p.team_id]) byTeam[p.team_id] = { color: p.team_color, gk: [], field: [] };
+                p.is_goalkeeper ? byTeam[p.team_id].gk.push(p) : byTeam[p.team_id].field.push(p);
+            } else {
+                benchPlayers.push(p);
+            }
+        }
+
+        // Build maps for diff
+        const newOnFieldMap = new Map(snapshot.filter(p => p.team_id).map(p => [p.person_id, p.is_goalkeeper]));
+        const newBenchMap   = new Map(benchPlayers.map(p => [p.person_id, p.is_goalkeeper]));
+
+        // Animate out removed / role-changed players
+        onField.querySelectorAll('.player-entry').forEach(el => {
+            const pid = parseInt(el.dataset.personId);
+            const wasGk = el.classList.contains('player-gk');
+            const newGk = newOnFieldMap.get(pid);
+            if (!newOnFieldMap.has(pid) || (newGk === 1) !== wasGk) {
+                el.classList.add('leaving');
+                el.addEventListener('animationend', () => el.remove(), { once: true });
+            }
+        });
+        bench.querySelectorAll('.player-entry').forEach(el => {
+            const pid = parseInt(el.dataset.personId);
+            if (!newBenchMap.has(pid)) {
+                el.classList.add('leaving');
+                el.addEventListener('animationend', () => el.remove(), { once: true });
+            }
+        });
+
+        // Add new players after leave animation clears
+        setTimeout(() => {
+            for (const tid of activeTeams) {
+                const group = byTeam[tid];
+                if (!group) continue;
+
+                let block = onField.querySelector(`.team-block[data-team-id="${tid}"]`);
+                if (!block) {
+                    block = document.createElement('div');
+                    block.className = 'team-block mb-2';
+                    block.dataset.teamId = tid;
+                    block.innerHTML = `
+                        <div class="d-flex align-items-center gap-1 mb-1">
+                            <span style="width:10px;height:10px;border-radius:50%;background:${group.color};border:1px solid rgba(0,0,0,0.15);display:inline-block;flex-shrink:0"></span>
+                            <span class="fw-semibold text-capitalize" style="font-size:0.72rem">${group.color}</span>
+                        </div>`;
+                    onField.appendChild(block);
+                }
+
+                const existingIds = new Set([...block.querySelectorAll('.player-entry:not(.leaving)')].map(e => parseInt(e.dataset.personId)));
+                for (const p of [...group.gk, ...group.field]) {
+                    if (!existingIds.has(p.person_id)) {
+                        const el = makeRosterEl(p);
+                        el.classList.add('entering');
+                        el.addEventListener('animationend', () => el.classList.remove('entering'), { once: true });
+                        insertRosterEl(block, el, p.is_goalkeeper);
+                    }
+                }
+            }
+
+            const existingBenchIds = new Set([...bench.querySelectorAll('.player-entry:not(.leaving)')].map(e => parseInt(e.dataset.personId)));
+            for (const p of benchPlayers) {
+                if (!existingBenchIds.has(p.person_id)) {
+                    const el = makeRosterEl(p);
+                    el.classList.add('entering');
+                    el.addEventListener('animationend', () => el.classList.remove('entering'), { once: true });
+                    bench.appendChild(el);
+                }
+            }
+            benchSec.style.display = benchPlayers.length ? '' : 'none';
+
+            // Update dropdowns after render
+            rebuildPlayerDropdowns(snapshot, byTeam, teamIds, benchPlayers);
+        }, 320);
+    }
+
+    function insertRosterEl(block, el, isGk) {
+        if (isGk) {
+            const firstField = block.querySelector('.player-entry:not(.player-gk):not(.leaving)');
+            if (firstField) { block.insertBefore(el, firstField); return; }
+        }
+        block.appendChild(el);
+    }
+
+    // Rebuild #person-select and linked_person_id with on-field players
+    // grouped by team, then bench players in a separate optgroup.
+    // Preserves the current selection if the player is still in the list.
+    function rebuildPlayerDropdowns(snapshot, byTeam, teamIds, benchPlayers) {
+        const selIds = ['person-select'];
+        const linkedSel = document.querySelector('[name="linked_person_id"]');
+
+        // Build option HTML: on-field grouped by team, then bench
+        function buildOptions(includeBlank, blankLabel) {
+            let html = includeBlank ? `<option value="">${blankLabel}</option>` : '';
+            for (const tid of teamIds) {
+                const group = byTeam[tid];
+                if (!group) continue;
+                html += `<optgroup label="${group.color.toUpperCase()}">`;
+                for (const p of [...group.gk, ...group.field]) {
+                    html += `<option value="${p.person_id}">${p.name}</option>`;
+                }
+                html += `</optgroup>`;
+            }
+            if (benchPlayers.length) {
+                html += `<optgroup label="BENCH">`;
+                for (const p of benchPlayers) {
+                    html += `<option value="${p.person_id}">${p.name}</option>`;
+                }
+                html += `</optgroup>`;
+            }
+            return html;
+        }
+
+        // #person-select
+        const personSel = document.getElementById('person-select');
+        if (personSel) {
+            const prev = personSel.value;
+            personSel.innerHTML = buildOptions(true, '— No specific player —');
+            if (prev) personSel.value = prev;
+        }
+
+        // linked_person_id
+        if (linkedSel) {
+            const prev = linkedSel.value;
+            linkedSel.innerHTML = buildOptions(true, '— None —');
+            if (prev) linkedSel.value = prev;
+        }
+    }
+
+    function makeRosterEl(p) {
+        const el = document.createElement('div');
+        el.className = 'ms-2 player-entry' + (p.is_goalkeeper ? ' player-gk' : '');
+        el.dataset.personId = p.person_id;
+        const gkBadge = p.is_goalkeeper
+            ? `<span class="badge ms-1 d-inline-flex align-items-center gap-1"
+                     style="background:#fff3cd;color:#856404;font-size:0.6rem;padding:1px 5px;border-radius:8px;border:1px solid #ffd666">
+                   <i class="bi bi-shield-fill" style="font-size:0.55rem"></i> GK
+               </span>`
+            : '';
+        el.innerHTML = `
+            <div class="d-flex align-items-center gap-1 py-1" style="font-size:0.78rem">
+                <a href="/player/${p.person_id}" class="text-decoration-none text-dark small">${p.name}</a>
+                ${gkBadge}
+            </div>`;
+        return el;
+    }
+
+    // ── YouTube ───────────────────────────────────────────────
+    {% if youtube_embed %}
+    window.onYouTubeIframeAPIReady = function() {
+        ytPlayer = new YT.Player('yt-player', {
+            events: {
+                onReady: () => { updateRosterSidebar(0); startAutoSync(); },
+                onStateChange: (e) => { if (e.data === 1) startAutoSync(); else stopAutoSync(); }
+            }
+        });
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        updateRosterSidebar(0);
+        const grabBtn = document.getElementById('grab-time');
+        if (grabBtn) {
+            grabBtn.addEventListener('click', function() {
+                if (ytPlayer && ytPlayer.getCurrentTime) {
+                    const secs = Math.floor(ytPlayer.getCurrentTime());
+                    const h = String(Math.floor(secs / 3600)).padStart(2,'0');
+                    const m = String(Math.floor((secs % 3600) / 60)).padStart(2,'0');
+                    const s = String(secs % 60).padStart(2,'0');
+                    document.getElementById('timestamp').value = `${h}:${m}:${s}`;
+                }
+            });
+        }
+    });
+    {% else %}
+    document.addEventListener('DOMContentLoaded', () => updateRosterSidebar(0));
+    {% endif %}
+
+    function updateSegStrip(currentSecs) {
+        const chips = document.querySelectorAll('#seg-strip .seg-chip');
+        if (!chips.length) return;
+        let activeIdx = chips.length - 1;
+        chips.forEach((chip, i) => {
+            const start = parseInt(chip.dataset.start);
+            const end   = parseInt(chip.dataset.end);
+            if (currentSecs >= start && currentSecs < end) activeIdx = i;
+        });
+        chips.forEach((chip, i) => {
+            chip.classList.toggle('active', i === activeIdx);
+            if (i === activeIdx) chip.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+        });
+    }
+
+    function startAutoSync() {
+        if (syncInterval) return;
+        syncInterval = setInterval(() => {
+            if (ytPlayer && ytPlayer.getCurrentTime) {
+                const s = Math.floor(ytPlayer.getCurrentTime());
+                updateRosterSidebar(s);
+                updateSegStrip(s);
+            }
+        }, 3000);
+    }
+    function stopAutoSync() { clearInterval(syncInterval); syncInterval = null; }
+    function syncNow() {
+        if (ytPlayer && ytPlayer.getCurrentTime) {
+            const s = Math.floor(ytPlayer.getCurrentTime());
+            updateRosterSidebar(s);
+            updateSegStrip(s);
+        }
+    }
+    function seekTo(s) {
+        if (ytPlayer && ytPlayer.seekTo) {
+            ytPlayer.seekTo(s, true);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            updateRosterSidebar(s);
+            updateSegStrip(s);
+        }
+    }
+
+    // ── Event type show/hide ──────────────────────────────────
+    document.getElementById('event-type').addEventListener('change', function() {
+        const type           = this.value;
+        const isGameStart    = type === 'game_start';
+        const isTeamChange   = type === 'team_change';
+        const isSubstitution = type === 'substitution';
+        const isPlayerJoin   = type === 'player_join';
+        const isPlayerLeave  = type === 'player_leave';
+        const showLink       = ['goal', 'highlight', 'foul', 'injury'].includes(type);
+        const hidePlayer     = isGameStart || isTeamChange || isSubstitution || isPlayerJoin;
+
+        document.getElementById('player-row').style.display       = hidePlayer    ? 'none' : '';
+        document.getElementById('team-change-row').style.display  = isTeamChange  ? '' : 'none';
+        document.getElementById('substitution-row').style.display = isSubstitution ? '' : 'none';
+        document.getElementById('player-join-row').style.display  = isPlayerJoin  ? '' : 'none';
+        document.getElementById('link-row').style.display         = showLink      ? '' : 'none';
+
+        // For player_leave: show player selector with all players (re-use person-select)
+        if (isPlayerLeave) {
+            document.getElementById('player-row').style.display = '';
+        }
+
+        if (showLink) {
+            const defaults = { goal: 'assist', highlight: 'featured', foul: 'foul_on' };
+            const sel = document.getElementById('link-type-select');
+            if (defaults[type]) sel.value = defaults[type];
+        }
+    });
+
+    function toggleGkSwap(checkbox) {
+        document.getElementById('sub-hint').style.display     = checkbox.checked ? 'none' : '';
+        document.getElementById('gk-swap-hint').style.display = checkbox.checked ? ''     : 'none';
+    }
+
+    function toggleCustomLinkType(select) {
+        const wrap  = document.getElementById('custom-link-wrap');
+        const input = document.getElementById('custom-link-type');
+        const show  = select.value === 'custom';
+        wrap.style.display = show ? '' : 'none';
+        input.required = show;
+    }
+
+    // ── Submit (add or update) ────────────────────────────────
+    document.getElementById('event-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const form   = e.target;
+        const btn    = document.getElementById('submit-btn');
+        const editId = document.getElementById('edit-event-id').value;
+        const isEdit = !!editId;
+
+        const linkSel = document.getElementById('link-type-select');
+        if (linkSel && linkSel.value === 'custom')
+            linkSel.value = document.getElementById('custom-link-type').value.trim();
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+        const resp = await fetch(
+            isEdit ? `/games/${gameId}/events/${editId}` : `/games/${gameId}/events`,
+            { method: isEdit ? 'PUT' : 'POST', body: new FormData(form) }
+        );
+        const data = await resp.json();
+
+        btn.disabled = false;
+        btn.innerHTML = isEdit ? '<i class="bi bi-check-lg"></i> Save' : '<i class="bi bi-plus-lg"></i> Add Event';
+
+        if (!data.success) { alert(data.error || 'Error'); return; }
+
+        if (isEdit) {
+            const row = document.querySelector(`[data-event-id="${editId}"]`);
+            if (row) updateRowContent(row, data.event);
+            cancelEdit();
+        } else {
+            const em = document.getElementById('empty-msg');
+            if (em) em.remove();
+            // Show filter bar + search if this is the first event
+            if (typeof window._tlShowControls_timeline === 'function')
+                window._tlShowControls_timeline();
+
+            if (data.game_started) {
+                // Enable all event types now that game has started
+                document.querySelectorAll('#event-type option[disabled]').forEach(o => o.disabled = false);
+                // Remove the game_start option so it can't be logged again
+                const gsOpt = document.querySelector('#event-type option[value="game_start"]');
+                if (gsOpt) gsOpt.remove();
+
+                // Update warmup chip end time and add first segment chip to strip
+                const gsSecs = timeToSecs(data.event.timestamp);
+                const warmupChip = document.getElementById('seg-chip-warmup');
+                if (warmupChip) {
+                    warmupChip.dataset.end = gsSecs;
+                    warmupChip.classList.remove('active');
+                }
+                // The new segment will appear after page data refreshes; add it now
+                if (data.first_segment) {
+                    const seg = data.first_segment;
+                    const strip = document.getElementById('seg-strip');
+                    const chip = document.createElement('div');
+                    chip.className = 'seg-chip active';
+                    chip.id = 'seg-chip-0';
+                    chip.dataset.start = gsSecs;
+                    chip.dataset.end = 999999;
+                    chip.title = `${seg.team_a_color} vs ${seg.team_b_color} · ${data.event.timestamp}`;
+                    chip.onclick = () => seekTo(gsSecs);
+                    chip.style.cursor = 'pointer';
+                    chip.innerHTML = `
+                        <span class="seg-dot" style="background:${seg.team_a_color}"></span>
+                        <span class="seg-score">0–0</span>
+                        <span class="seg-dot" style="background:${seg.team_b_color}"></span>`;
+                    strip.appendChild(chip);
+                }
+            }
+
+            if (data.event.type === 'team_change' && data.event.team_change) {
+                const tc = data.event.team_change;
+                document.getElementById('segment-banner').innerHTML = `
+                    <div class="d-flex align-items-center gap-2 small">
+                        <span style="width:10px;height:10px;border-radius:50%;background:${tc.staying_color};border:1px solid rgba(0,0,0,0.15)"></span>
+                        <span class="text-capitalize fw-semibold">${tc.staying_color}</span>
+                        <span class="text-muted">vs</span>
+                        <span style="width:10px;height:10px;border-radius:50%;background:${tc.entering_color};border:1px solid rgba(0,0,0,0.15)"></span>
+                        <span class="text-capitalize fw-semibold">${tc.entering_color}</span>
+                    </div>`;
+            }
+
+            if (data.roster_timeline) {
+                rosterTimeline = data.roster_timeline;
+                lastSnapshotKey = null;
+                const secs = (ytPlayer && ytPlayer.getCurrentTime) ? Math.floor(ytPlayer.getCurrentTime()) : 0;
+                updateRosterSidebar(secs);
+            }
+
+            // When a player joins, add them to person-select + linked_person_id immediately
+            if (data.event.type === 'player_join' && data.event.person_id && data.event.person_name) {
+                const pid       = String(data.event.person_id);
+                const name      = data.event.person_name;
+                const teamColor = (data.event.player_join && data.event.player_join.team_color || '').toUpperCase();
+
+                [document.getElementById('person-select'),
+                 document.querySelector('[name="linked_person_id"]')].forEach(sel => {
+                    if (!sel) return;
+                    // Remove stale entry if exists
+                    const existing = sel.querySelector(`option[value="${pid}"]`);
+                    if (existing) existing.remove();
+                    // Find or create the team optgroup
+                    let grp = teamColor ? sel.querySelector(`optgroup[label="${teamColor}"]`) : null;
+                    if (!grp) {
+                        grp = document.createElement('optgroup');
+                        grp.label = teamColor || 'OTHER';
+                        sel.appendChild(grp);
+                    }
+                    const opt = document.createElement('option');
+                    opt.value       = pid;
+                    opt.textContent = name;
+                    grp.appendChild(opt);
+                });
+            }
+
+            // When a player leaves, remove them from #person-select
+            if (data.event.type === 'player_leave' && data.event.person_id) {
+                const pid = data.event.person_id;
+                [document.getElementById('person-select'),
+                 document.querySelector('[name="linked_person_id"]')].forEach(sel => {
+                    if (sel) {
+                        const opt = sel.querySelector(`option[value="${pid}"]`);
+                        if (opt) opt.remove();
+                    }
+                });
+            }
+
+            appendEventRow(data.event);
+            const badge = document.getElementById('event-count');
+            badge.textContent = parseInt(badge.textContent) + 1;
+
+            const savedType = form.querySelector('#event-type').value;
+            form.reset();
+            form.querySelector('#event-type').value = savedType;
+            document.getElementById('sub-hint').style.display     = '';
+            document.getElementById('gk-swap-hint').style.display = 'none';
+            form.querySelector('#timestamp').focus();
+
+            const tl = document.getElementById('timeline');
+            tl.parentElement.scrollTop = tl.parentElement.scrollHeight;
+        }
+    });
+
+    // ── Edit ──────────────────────────────────────────────────
+    async function startEdit(eventId) {
+        const resp = await fetch(`/games/${gameId}/events/${eventId}`);
+        const data = await resp.json();
+        if (!data.id) { alert('Could not load event'); return; }
+
+        document.getElementById('edit-event-id').value = eventId;
+        document.getElementById('form-title').textContent = 'Edit Event';
+        document.getElementById('submit-btn').innerHTML = '<i class="bi bi-check-lg"></i> Save';
+        document.getElementById('cancel-edit-btn').style.display = '';
+        document.getElementById('done-btn').style.display = 'none';
+
+        document.getElementById('timestamp').value = data.timestamp;
+        const typeSelect = document.getElementById('event-type');
+        typeSelect.value = data.type;
+        typeSelect.dispatchEvent(new Event('change'));
+
+        const personSel = document.getElementById('person-select');
+        if (personSel) personSel.value = data.person_id || '';
+
+        if (data.link) {
+            const linkSel = document.getElementById('link-type-select');
+            linkSel.value = data.link.link_type || '';
+            linkSel.dispatchEvent(new Event('change'));
+            const linkedSel = document.querySelector('[name="linked_person_id"]');
+            if (linkedSel) linkedSel.value = data.link.linked_person_id || '';
+        }
+
+        document.querySelector('[name="notes"]').value = data.notes || '';
+
+        document.querySelectorAll('.event-row').forEach(r => r.classList.remove('table-warning'));
+        const editRow = document.querySelector(`[data-event-id="${eventId}"]`);
+        if (editRow) editRow.classList.add('table-warning');
+
+        document.getElementById('event-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function cancelEdit() {
+        document.getElementById('edit-event-id').value = '';
+        document.getElementById('form-title').textContent = 'Log Event';
+        document.getElementById('submit-btn').innerHTML = '<i class="bi bi-plus-lg"></i> Add Event';
+        document.getElementById('cancel-edit-btn').style.display = 'none';
+        document.getElementById('done-btn').style.display = '';
+        document.getElementById('event-form').reset();
+        document.getElementById('sub-hint').style.display     = '';
+        document.getElementById('gk-swap-hint').style.display = 'none';
+        document.querySelectorAll('.event-row').forEach(r => r.classList.remove('table-warning'));
+    }
+
+    function updateRowContent(row, event) {
+        const parts = event.timestamp.split(':');
+        const secs  = parseInt(parts[0])*3600 + parseInt(parts[1])*60 + parseInt(parts[2]);
+        const tsEl  = row.querySelector('.event-timestamp');
+        if (tsEl) tsEl.innerHTML = ytEmbed
+            ? `<span class="font-monospace text-primary" style="cursor:pointer" onclick="seekTo(${secs})">${event.timestamp}</span>`
+            : `<span class="font-monospace text-muted">${event.timestamp}</span>`;
+
+        const bodyEl = row.querySelector('.flex-grow-1');
+        if (bodyEl) {
+            let html = '—';
+            if (event.person_name) {
+                const initials = event.person_name.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase();
+                const color    = avatarColor(event.person_id);
+                html = `<div class="d-flex align-items-center gap-2">
+                    <span style="width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;font-size:8px;font-weight:700;color:#fff;background:${color};">${initials}</span>
+                    <a href="/player/${event.person_id}" class="text-decoration-none fw-semibold">${event.person_name}</a>`;
+                if (event.link_type && event.linked_name)
+                    html += ` <span class="text-muted"><i class="bi bi-arrow-return-right"></i> ${event.link_type}: ${event.linked_name}</span>`;
+                html += `</div>`;
+            }
+            bodyEl.innerHTML = html;
+        }
+        const noteEl = row.querySelector('.fst-italic');
+        if (noteEl) noteEl.textContent = event.notes || '';
+    }
+
+    // ── Delete ────────────────────────────────────────────────
+    async function deleteEvent(eventId, btn) {
+        if (!confirm('Delete this event?')) return;
+        btn.disabled = true;
+
+        const resp = await fetch(`/games/${gameId}/events/${eventId}`, { method: 'DELETE' });
+        const data = await resp.json();
+
+        if (!data.success) { alert(data.error || 'Error'); btn.disabled = false; return; }
+
+        const row = document.querySelector(`[data-event-id="${eventId}"]`);
+        if (row) row.remove();
+
+        const badge = document.getElementById('event-count');
+        const newCount = parseInt(badge.textContent) - 1;
+        badge.textContent = newCount;
+        if (newCount === 0)
+            document.getElementById('timeline').innerHTML =
+                '<p class="text-muted text-center py-4 mb-0" id="empty-msg">No events yet.</p>';
+
+        // Refresh roster sidebar + dropdowns if the deleted event affected the roster
+        if (data.roster_timeline) {
+            rosterTimeline = data.roster_timeline;
+            lastSnapshotKey = null;
+            const secs = (ytPlayer && ytPlayer.getCurrentTime) ? Math.floor(ytPlayer.getCurrentTime()) : 0;
+            updateRosterSidebar(secs);
+        }
+    }
+
+    // ── Append new event row ──────────────────────────────────
+    // Deterministic avatar colour from person_id — matches Python palette
+    function avatarColor(personId) {
+        const palette = ['#e74c3c','#e67e22','#f1c40f','#2ecc71','#1abc9c','#3498db','#9b59b6','#e91e63'];
+        return palette[(personId || 0) % palette.length];
+    }
+
+    function appendEventRow(event) {
+        const tl    = document.getElementById('timeline');
+        const parts = event.timestamp.split(':');
+        const secs  = parseInt(parts[0])*3600 + parseInt(parts[1])*60 + parseInt(parts[2]);
+
+        const tsHtml = ytEmbed
+            ? `<span class="font-monospace text-primary" style="cursor:pointer" onclick="seekTo(${secs})">${event.timestamp}</span>`
+            : `<span class="font-monospace text-muted">${event.timestamp}</span>`;
+
+        let bodyHtml = '—';
+        if (event.type === 'team_change' && event.team_change) {
+            const tc = event.team_change;
+            bodyHtml = `
+                <span style="width:10px;height:10px;border-radius:50%;background:${tc.staying_color};display:inline-block;border:1px solid rgba(0,0,0,0.15)"></span>
+                <span class="text-capitalize fw-semibold">${tc.staying_color}</span>
+                <span class="text-muted mx-1">vs</span>
+                <span style="width:10px;height:10px;border-radius:50%;background:${tc.entering_color};display:inline-block;border:1px solid rgba(0,0,0,0.15)"></span>
+                <span class="text-capitalize fw-semibold">${tc.entering_color}</span>`;
+        } else if (event.type === 'substitution' && event.substitution) {
+            const sub = event.substitution;
+            bodyHtml = sub.is_goalkeeper_swap
+                ? `<i class="bi bi-shield text-muted"></i> <span class="text-muted">${sub.player_off_name}</span> → <i class="bi bi-shield-fill text-warning"></i> <span class="fw-semibold">${sub.player_on_name}</span>`
+                : `<span class="text-danger">↓ ${sub.player_off_name}</span> <span class="text-muted mx-1">·</span> <span class="text-success">↑ ${sub.player_on_name}</span>`;
+        } else if (event.type === 'game_start') {
+            bodyHtml = `<span class="text-success fw-semibold">Game started</span>`;
+        } else if (event.type === 'player_join' && event.player_join) {
+            const initials = event.person_name ? event.person_name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase() : '?';
+            const color    = avatarColor(event.person_id);
+            const gkBadge  = event.player_join.is_goalkeeper
+                ? ` <span class="badge ms-1" style="background:#fff3cd;color:#856404;font-size:0.6rem;border:1px solid #ffd666">GK</span>` : '';
+            bodyHtml = `<div class="d-flex align-items-center gap-2">
+                <span style="width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;background:${color};">${initials}</span>
+                <a href="/player/${event.person_id}" class="text-decoration-none fw-semibold">${event.person_name}</a>
+                <span class="text-muted small">joined</span>
+                <span class="badge text-capitalize" style="background:${event.player_join.team_color};font-size:0.7rem">${event.player_join.team_color}</span>
+                ${gkBadge}
+            </div>`;
+        } else if (event.type === 'player_leave') {
+            const initials = event.person_name ? event.person_name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase() : '?';
+            const color    = avatarColor(event.person_id);
+            bodyHtml = `<div class="d-flex align-items-center gap-2">
+                <span style="width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;background:${color};">${initials}</span>
+                <a href="/player/${event.person_id}" class="text-decoration-none fw-semibold">${event.person_name}</a>
+                <span class="text-muted small">left the game</span>
+            </div>`;
+        } else if (event.person_name) {
+            const initials = event.person_name.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase();
+            const color    = avatarColor(event.person_id);
+            bodyHtml = `
+                <div class="d-flex align-items-center gap-2">
+                    <span style="width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;font-size:8px;font-weight:700;color:#fff;background:${color};">${initials}</span>
+                    <a href="/player/${event.person_id}" class="text-decoration-none fw-semibold">${event.person_name}</a>`;
+            if (event.links && event.links.length)
+                event.links.forEach(l => {
+                    bodyHtml += ` <span class="text-muted"><i class="bi bi-arrow-return-right"></i> ${l.link_type}: ${l.name}</span>`;
+                });
+            bodyHtml += `</div>`;
+        }
+
+        const notesHtml = event.notes ? `<span class="text-muted small fst-italic">${event.notes}</span>` : '';
+        const canEdit   = !['substitution','team_change'].includes(event.type);
+        const editBtn   = canEdit
+            ? `<button class="btn btn-link btn-sm p-0 text-secondary" title="Edit" onclick="startEdit(${event.id})"><i class="bi bi-pencil" style="font-size:0.7rem"></i></button>`
+            : '';
+
+        const row = document.createElement('div');
+        row.className = 'event-row';
+        row.dataset.eventId   = event.id;
+        row.dataset.eventType = event.type;
+        row.dataset.type      = event.type;
+        // Build search index from all text fields
+        const searchParts = [
+            event.type,
+            event.person_name || '',
+            event.notes || '',
+            event.team_name || '',
+            event.substitution ? (event.substitution.player_on_name  || '') : '',
+            event.substitution ? (event.substitution.player_off_name || '') : '',
+            event.team_change  ? (event.team_change.staying_color    || '') : '',
+            event.team_change  ? (event.team_change.entering_color   || '') : '',
+            event.team_change  ? (event.team_change.leaving_color    || '') : '',
+            event.player_join  ? (event.player_join.team_color       || '') : '',
+        ];
+        row.dataset.search = searchParts.join(' ').toLowerCase();
+        row.innerHTML = `
+            <span class="event-timestamp">${tsHtml}</span>
+            <span class="badge event-type-badge badge-${event.type} text-white">${event.type}</span>
+            <span class="flex-grow-1 small">${bodyHtml}</span>
+            ${notesHtml}
+            <span class="event-actions ms-1 d-flex gap-1" style="flex-shrink:0">
+                ${editBtn}
+                <button class="btn btn-link btn-sm p-0 text-danger" title="Delete" onclick="deleteEvent(${event.id}, this)">
+                    <i class="bi bi-trash" style="font-size:0.7rem"></i>
+                </button>
+            </span>`;
+        tl.appendChild(row);
+    }
+</script>
+
+<style>
+/* ── Segment strip ─────────────────────────────────── */
+/* game_start / player_join / player_leave event badges */
+.badge-game_start   { background: #198754 !important; }
+.badge-player_join  { background: #0d6efd !important; }
+.badge-player_leave { background: #6c757d !important; }
+
+/* warmup chip styling */
+.seg-chip-warmup { border-style: dashed; border-color: #adb5bd; background: #f8f9fa; }
+.seg-chip-warmup.active { border-color: #6c757d; background: #fff; }
+
+.seg-strip {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+}
+.seg-strip::-webkit-scrollbar { height: 4px; }
+.seg-strip::-webkit-scrollbar-thumb { background: #dee2e6; border-radius: 2px; }
+.seg-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border-radius: 20px;
+    border: 2px solid transparent;
+    background: #f8f9fa;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: border-color 0.25s, background 0.25s, box-shadow 0.25s;
+    user-select: none;
+}
+.seg-chip.active {
+    border-color: #dc3545;
+    background: #fff;
+    box-shadow: 0 1px 6px rgba(220,53,69,0.15);
+}
+.seg-chip:hover { background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+.seg-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.15);
+    flex-shrink: 0;
+    display: inline-block;
+}
+.seg-score { font-weight: 700; font-size: 0.85rem; letter-spacing: 0.04em; }
+</style>
+
+{% if youtube_embed %}
+<script src="https://www.youtube.com/iframe_api"></script>
+{% endif %}
+
+{% endblock %}

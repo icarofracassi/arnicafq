@@ -1,0 +1,275 @@
+{% extends "layout.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block main %}
+
+{% if not linked %}
+    <div class="text-center mb-5">
+        <h2>Welcome to Arnica F.Q.</h2>
+        <p class="text-muted">Link your account to a player profile to see your personal stats.</p>
+        <a href="/profile" class="btn btn-danger">
+            <i class="bi bi-person-badge"></i> Link Player Profile
+        </a>
+    </div>
+
+    {% if recent_games %}
+        <h5 class="mb-3 text-muted">Recent Games</h5>
+        <div class="row g-3">
+            {% for game in recent_games %}
+                <div class="col-12">
+                    <a href="/games/{{ game.id }}" class="text-decoration-none text-dark">
+                        <div class="card shadow-sm">
+                            <div class="card-body d-flex align-items-center gap-3">
+                                <div class="text-center" style="min-width:50px">
+                                    <div class="fw-bold text-danger" style="font-size:1.2rem">{{ game.date[8:10] }}</div>
+                                    <div class="text-muted" style="font-size:0.7rem">{{ game.date[5:7] }}/{{ game.date[0:4] }}</div>
+                                </div>
+                                <div class="border-start" style="height:40px"></div>
+                                <div class="flex-grow-1">
+                                    <div class="fw-semibold">{{ game.title }}</div>
+                                    <div class="text-muted small"><i class="bi bi-geo-alt"></i> {{ game.location }}</div>
+                                </div>
+                                <i class="bi bi-chevron-right text-muted"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+{% else %}
+
+    <div class="mb-4">
+        <h2 class="mb-0">Hey, {{ person.nickname or person.name }} 👋</h2>
+        <p class="text-muted">Here's your football summary.</p>
+    </div>
+
+    <!-- Stat boxes -->
+    <div class="row g-3 mb-4">
+        <div class="col-4">
+            <div class="stat-box">
+                <div class="stat-number">{{ stats.goals }}</div>
+                <div class="stat-label">Goals</div>
+            </div>
+        </div>
+        <div class="col-4">
+            <div class="stat-box">
+                <div class="stat-number">{{ stats.assists }}</div>
+                <div class="stat-label">Assists</div>
+            </div>
+        </div>
+        <div class="col-4">
+            <div class="stat-box">
+                <div class="stat-number">{{ stats.appearances }}</div>
+                <div class="stat-label">Games</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Video panel -->
+    {% if index_youtube_embed %}
+        <div class="card shadow-sm mb-4" id="video-card">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-play-circle text-danger"></i> Game Film</span>
+                <a id="video-game-link" href="/games/{{ recent_video_game.id }}" class="text-muted small text-decoration-none">
+                    <span id="video-game-label">{{ recent_video_game.title }} &middot; {{ recent_video_game.date }}</span>
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div class="ratio ratio-16x9">
+                    <iframe id="yt-player"
+                            src="{{ index_youtube_embed }}"
+                            title="Game video"
+                            frameborder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            referrerpolicy="strict-origin-when-cross-origin"
+                            allowfullscreen>
+                    </iframe>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="row g-4">
+
+        <!-- Recent goals & highlights -->
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-star"></i> My Goals &amp; Highlights</span>
+                    <a href="/player/{{ person.id }}" class="text-muted small text-decoration-none">
+                        View all <i class="bi bi-chevron-right"></i>
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_events %}
+                        <div class="event-timeline px-3 pt-2 pb-1">
+                            {% for event in recent_events %}
+                                {% set parts = event.timestamp.split(':') %}
+                                {% set total_seconds = parts[0]|int * 3600 + parts[1]|int * 60 + parts[2]|int %}
+                                <div class="event-row">
+                                    <span class="text-muted font-monospace" style="font-size:0.7rem;min-width:fit-content">
+                                        {{ event.game_date }}
+                                    </span>
+                                    <span class="event-timestamp font-monospace">
+                                        {% if event.youtube_embed %}
+                                            <a href="#"
+                                               class="text-decoration-none text-muted"
+                                               onclick="seekVideo('{{ event.youtube_embed }}', {{ total_seconds }}, '{{ event.game_id }}', event); return false;"
+                                               data-game-id="{{ event.game_id }}"
+                                               data-game-title="{{ event.game_title }}"
+                                               data-game-date="{{ event.game_date }}"
+                                               data-embed="{{ event.youtube_embed }}">
+                                                {{ event.timestamp }}
+                                                <i class="bi bi-play-fill text-danger" style="font-size:0.6rem"></i>
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">{{ event.timestamp }}</span>
+                                        {% endif %}
+                                    </span>
+                                    <span class="badge event-type-badge badge-{{ event.type }} text-white">
+                                        {{ event.type }}
+                                    </span>
+                                    <span class="flex-grow-1 small">
+                                        <a href="/games/{{ event.game_id }}" class="text-decoration-none text-muted">
+                                            {{ event.game_title }}
+                                        </a>
+                                        {% for link in event.links %}
+                                            <span class="text-muted ms-1">&middot; {{ link.link_type }}: {{ link.name }}</span>
+                                        {% endfor %}
+                                    </span>
+                                    {% if event.notes %}
+                                        <span class="text-muted small fst-italic">{{ event.notes }}</span>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted py-5">
+                            <i class="bi bi-emoji-smile" style="font-size:2rem"></i>
+                            <p class="mt-2 mb-0">No goals or highlights yet. Get out there!</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent games -->
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-calendar3"></i> Recent Games</span>
+                    <a href="/games" class="text-muted small text-decoration-none">
+                        All <i class="bi bi-chevron-right"></i>
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_games %}
+                        <ul class="list-group list-group-flush">
+                            {% for game in recent_games %}
+                                <li class="list-group-item px-3 py-2">
+                                    <a href="/games/{{ game.id }}" class="text-decoration-none fw-semibold">
+                                        {{ game.title }}
+                                    </a>
+                                    <div class="text-muted small">{{ game.date }} &middot; {{ game.location }}</div>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted text-center py-4 mb-0">No games yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    {% if index_youtube_embed %}
+    <script>
+        // Track currently loaded game
+        let currentGameId   = "{{ recent_video_game.id }}";
+        let currentEmbed    = "{{ index_youtube_embed }}";
+        let ytPlayer        = null;
+        let pendingSeek     = null;  // seek after video loads when swapping
+
+        // YT IFrame API
+        window.onYouTubeIframeAPIReady = function() {
+            ytPlayer = new YT.Player('yt-player', {
+                events: {
+                    onReady: onPlayerReady,
+                    onStateChange: onStateChange,
+                }
+            });
+        };
+
+        function onPlayerReady() {
+            if (pendingSeek !== null) {
+                ytPlayer.seekTo(pendingSeek, true);
+                ytPlayer.playVideo();
+                pendingSeek = null;
+            }
+        }
+
+        // Re-fire onReady equivalent when video is cued after src swap
+        function onStateChange(e) {
+            // YT.PlayerState.CUED = 5
+            if (e.data === 5 && pendingSeek !== null) {
+                ytPlayer.seekTo(pendingSeek, true);
+                ytPlayer.playVideo();
+                pendingSeek = null;
+            }
+        }
+
+        function seekVideo(embedUrl, seconds, gameId, e) {
+            e.preventDefault();
+
+            const videoCard = document.getElementById('video-card');
+
+            // Show video panel if hidden (e.g. no default video)
+            if (videoCard) videoCard.style.display = '';
+
+            if (gameId === currentGameId) {
+                // Same game — just seek
+                if (ytPlayer && ytPlayer.seekTo) {
+                    ytPlayer.seekTo(seconds, true);
+                    ytPlayer.playVideo();
+                }
+            } else {
+                // Different game — swap video then seek after load
+                pendingSeek   = seconds;
+                currentGameId = gameId;
+                currentEmbed  = embedUrl;
+
+                // Update label + link in card header
+                const link  = e.target.closest('[data-game-id]') || e.target;
+                const anchor = document.getElementById('video-game-link');
+                const label  = document.getElementById('video-game-label');
+                if (anchor) anchor.href = `/games/${gameId}`;
+                if (label)  label.textContent = `${link.dataset.gameTitle} · ${link.dataset.gameDate}`;
+
+                // Load new video — cueVideoById triggers onStateChange(CUED=5)
+                if (ytPlayer && ytPlayer.cueVideoById) {
+                    // Extract video ID from embed URL
+                    const vid = embedUrl.split('/embed/')[1].split('?')[0];
+                    ytPlayer.cueVideoById(vid, seconds);
+                } else {
+                    // Fallback: replace iframe src
+                    const iframe = document.getElementById('yt-player');
+                    iframe.src = embedUrl + '&autoplay=1&start=' + seconds;
+                    pendingSeek = null;
+                }
+            }
+
+            // Scroll to video
+            document.getElementById('video-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    </script>
+    <script src="https://www.youtube.com/iframe_api"></script>
+    {% endif %}
+
+{% endif %}
+
+{% endblock %}

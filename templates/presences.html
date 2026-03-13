@@ -1,0 +1,149 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import game_header, game_steps, avatar %}
+
+{% block title %}Presences – {{ game.title }}{% endblock %}
+
+{% block main %}
+
+<div class="row justify-content-center">
+    <div class="col-md-7 col-lg-6">
+
+        <!-- Step indicator -->
+        {{ game_header(game) }}
+        {{ game_steps(4, game.id, done=steps_done) }}
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-person-check"></i> Who Showed Up?</span>
+                <span class="text-muted small">{{ game.title }} · {{ game.date }}</span>
+            </div>
+            <div class="card-body">
+
+                <!-- Controls -->
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="text-muted small">
+                        Check who showed up. Enter a <i class="bi bi-clock text-warning"></i> timestamp only if they arrived <strong>late</strong> (leave blank if from start).
+                    </span>
+                </div>
+
+                <!-- Search -->
+                <input class="form-control form-control-sm mb-3"
+                       id="searchPeople"
+                       placeholder="Filter players..."
+                       type="text">
+
+                <form action="/games/{{ game.id }}/presences" method="post">
+
+                    {% macro player_row(person) %}
+                        <div class="list-group-item person-item">
+                            <div class="d-flex align-items-center gap-3">
+                                <input class="form-check-input flex-shrink-0 person-checkbox"
+                                       id="person_{{ person.id }}"
+                                       name="person_id"
+                                       type="checkbox"
+                                       value="{{ person.id }}"
+                                       {% if person.present %}checked{% endif %}
+                                       onchange="toggleArrived(this)">
+                                {{ avatar(person.id, person.name, size=34) }}
+                                <label for="person_{{ person.id }}" class="flex-grow-1 mb-0" style="cursor:pointer">
+                                    <span class="fw-semibold">{{ person.name }}</span>
+                                    {% if person.nickname %}
+                                        <span class="text-muted small"> ({{ person.nickname }})</span>
+                                    {% endif %}
+                                </label>
+                                <!-- Arrived late time input — only visible when checked -->
+                                <div class="arrived-wrap d-flex align-items-center gap-1"
+                                     style="{{ 'display:none!important' if not person.present else '' }}">
+                                    <i class="bi bi-clock text-warning" style="font-size:0.8rem" title="Arrived late"></i>
+                                    <input type="text"
+                                           name="arrived_at_{{ person.id }}"
+                                           class="form-control form-control-sm arrived-input"
+                                           placeholder="HH:MM:SS"
+                                           value="{{ person.arrived_at or '' }}"
+                                           style="width:90px;font-size:0.8rem"
+                                           pattern="\d{2}:\d{2}:\d{2}"
+                                           title="Video timestamp when player arrived (leave blank if from start)">
+                                </div>
+                            </div>
+                        </div>
+                    {% endmacro %}
+
+                    {% if people %}
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <p class="text-muted small mb-0"><i class="bi bi-whatsapp text-success"></i> WhatsApp list:</p>
+                            <div class="d-flex gap-1">
+                                <button type="button" class="btn btn-xs btn-outline-secondary" onclick="selectSection('peopleList', true)">All</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary" onclick="selectSection('peopleList', false)">None</button>
+                            </div>
+                        </div>
+                        <div class="list-group mb-4" id="peopleList">
+                            {% for person in people %}
+                                {{ player_row(person) }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    {% if others %}
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <p class="text-muted small mb-0"><i class="bi bi-plus-circle"></i> Others:</p>
+                            <div class="d-flex gap-1">
+                                <button type="button" class="btn btn-xs btn-outline-secondary" onclick="selectSection('othersList', true)">All</button>
+                                <button type="button" class="btn btn-xs btn-outline-secondary" onclick="selectSection('othersList', false)">None</button>
+                            </div>
+                        </div>
+                        <div class="list-group mb-4" id="othersList">
+                            {% for person in others %}
+                                {{ player_row(person) }}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <div class="d-flex gap-2">
+                        <a href="/games/{{ game.id }}/attendance" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Back
+                        </a>
+                        <button class="btn btn-danger flex-grow-1" type="submit">
+                            Next: Set Rosters <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    .btn-xs { font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 0.35rem; }
+</style>
+<script>
+    // Show/hide the arrived_at input when checkbox is toggled
+    function toggleArrived(cb) {
+        const wrap = cb.closest('.person-item').querySelector('.arrived-wrap');
+        if (cb.checked) {
+            wrap.style.removeProperty('display');
+        } else {
+            wrap.style.display = 'none';
+            wrap.querySelector('.arrived-input').value = '';
+        }
+    }
+
+    // Select all or none within a specific list section (respects current search filter)
+    function selectSection(listId, check) {
+        document.querySelectorAll(`#${listId} .person-item:not([style*="none"]) .person-checkbox`).forEach(cb => {
+            cb.checked = check;
+            toggleArrived(cb);
+        });
+    }
+
+    // Filter by name across both lists
+    document.getElementById('searchPeople').addEventListener('input', function() {
+        const query = this.value.toLowerCase();
+        document.querySelectorAll('.person-item').forEach(item => {
+            item.style.display = item.textContent.toLowerCase().includes(query) ? '' : 'none';
+        });
+    });
+</script>
+
+{% endblock %}

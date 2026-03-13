@@ -1,0 +1,171 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import game_header, game_steps %}
+
+{% block title %}Teams – {{ game.title }}{% endblock %}
+
+{% block main %}
+
+<div class="row justify-content-center">
+    <div class="col-md-7 col-lg-6">
+
+        <!-- Step indicator -->
+        {{ game_header(game) }}
+        {{ game_steps(2, game.id, done=steps_done) }}
+
+        <!-- Teams card -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-palette"></i> Teams</span>
+                <span class="text-muted small">{{ game.title }} · {{ game.date }}</span>
+            </div>
+            <div class="card-body">
+
+                <!-- Current teams -->
+                {% if teams %}
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        {% for team in teams %}
+                            <div class="d-flex align-items-center gap-2 border rounded px-3 py-2">
+                                <span style="width:18px;height:18px;border-radius:50%;background-color:{{ team.color }};border:1px solid rgba(0,0,0,0.15);display:inline-block;flex-shrink:0"></span>
+                                <span class="fw-semibold text-capitalize">{{ team.color }}</span>
+                                <form action="/games/{{ game.id }}/teams" method="post" class="mb-0">
+                                    <input type="hidden" name="action" value="delete">
+                                    <input type="hidden" name="team_id" value="{{ team.id }}">
+                                    <button class="btn btn-sm btn-link text-danger p-0 ms-1" type="submit">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-3">No teams yet. Add at least 2 to continue.</p>
+                {% endif %}
+
+                <!-- Add team -->
+                <form action="/games/{{ game.id }}/teams" method="post">
+                    <input type="hidden" name="action" value="add">
+                    <div class="d-flex gap-2 align-items-end">
+                        <div class="flex-grow-1">
+                            <label class="form-label small fw-semibold mb-1">Add Team Color</label>
+                            <select class="form-select form-select-sm" id="color-select" name="color" onchange="toggleCustom(this)">
+                                <option value="" disabled selected>Select color...</option>
+                                <option value="yellow">🟡 Yellow</option>
+                                <option value="blue">🔵 Blue</option>
+                                <option value="black">⚫ Black</option>
+                                <option value="red">🔴 Red</option>
+                                <option value="white">⚪ White</option>
+                                <option value="green">🟢 Green</option>
+                                <option value="orange">🟠 Orange</option>
+                                <option value="purple">🟣 Purple</option>
+                                <option value="custom">✏️ Custom...</option>
+                            </select>
+                        </div>
+                        <div class="flex-grow-1" id="custom-wrap" style="display:none">
+                            <label class="form-label small fw-semibold mb-1">Custom color</label>
+                            <input class="form-control form-control-sm" id="custom_color" name="custom_color" placeholder="e.g. pink" type="text">
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger flex-shrink-0" type="submit">
+                            <i class="bi bi-plus-lg"></i> Add
+                        </button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+
+        <!-- Starting matchup card -->
+        {% if teams | length >= 2 %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <i class="bi bi-play-circle"></i> Starting Matchup
+            </div>
+            <div class="card-body">
+                {% if initial_segment %}
+                    <!-- Show current starting matchup -->
+                    {% set team_a = teams | selectattr('id', 'equalto', initial_segment.team_a_id) | first %}
+                    {% set team_b = teams | selectattr('id', 'equalto', initial_segment.team_b_id) | first %}
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <span style="width:16px;height:16px;border-radius:50%;background:{{ team_a.color if team_a else '#aaa' }};border:1px solid rgba(0,0,0,0.15);display:inline-block"></span>
+                            <span class="fw-semibold text-capitalize">{{ team_a.color if team_a else '?' }}</span>
+                        </div>
+                        <span class="text-muted">vs</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span style="width:16px;height:16px;border-radius:50%;background:{{ team_b.color if team_b else '#aaa' }};border:1px solid rgba(0,0,0,0.15);display:inline-block"></span>
+                            <span class="fw-semibold text-capitalize">{{ team_b.color if team_b else '?' }}</span>
+                        </div>
+                        <span class="text-muted small ms-auto">starts at 00:00:00</span>
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-3">Choose which two teams start the game.</p>
+                {% endif %}
+
+                <!-- Set/change starting matchup form -->
+                <form action="/games/{{ game.id }}/teams" method="post">
+                    <input type="hidden" name="action" value="set_start">
+                    <div class="d-flex gap-2 align-items-end">
+                        <div class="flex-grow-1">
+                            <label class="form-label small fw-semibold mb-1">Team A</label>
+                            <select class="form-select form-select-sm" name="start_team_a" required>
+                                <option value="" disabled selected>Select...</option>
+                                {% for team in teams %}
+                                    <option value="{{ team.id }}" {% if initial_segment and initial_segment.team_a_id == team.id %}selected{% endif %}>
+                                        {{ team.color }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <span class="text-muted pb-1">vs</span>
+                        <div class="flex-grow-1">
+                            <label class="form-label small fw-semibold mb-1">Team B</label>
+                            <select class="form-select form-select-sm" name="start_team_b" required>
+                                <option value="" disabled selected>Select...</option>
+                                {% for team in teams %}
+                                    <option value="{{ team.id }}" {% if initial_segment and initial_segment.team_b_id == team.id %}selected{% endif %}>
+                                        {{ team.color }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button class="btn btn-sm btn-outline-secondary flex-shrink-0" type="submit">
+                            {{ 'Update' if initial_segment else 'Set' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Navigation -->
+        <div class="d-flex gap-2">
+            <a href="/games/{{ game.id }}/edit" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back
+            </a>
+            <form action="/games/{{ game.id }}/teams" method="post" class="flex-grow-1">
+                <input type="hidden" name="action" value="next">
+                <button class="btn btn-danger w-100" type="submit"
+                        {% if teams|length < 2 or not initial_segment %}disabled{% endif %}>
+                    Next: Attendance <i class="bi bi-chevron-right"></i>
+                </button>
+            </form>
+        </div>
+
+        {% if teams|length < 2 %}
+            <p class="text-muted small text-center mt-2">Add at least 2 teams to continue.</p>
+        {% elif not initial_segment %}
+            <p class="text-muted small text-center mt-2">Set the starting matchup to continue.</p>
+        {% endif %}
+
+    </div>
+</div>
+
+<script>
+    function toggleCustom(select) {
+        const wrap  = document.getElementById('custom-wrap');
+        const input = document.getElementById('custom_color');
+        wrap.style.display  = select.value === 'custom' ? '' : 'none';
+        input.required      = select.value === 'custom';
+    }
+</script>
+
+{% endblock %}
