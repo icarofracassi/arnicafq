@@ -1,0 +1,68 @@
+{% extends "layout.html" %}
+{% block title %}Users – Admin{% endblock %}
+{% block main %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="/admin" class="text-muted small text-decoration-none"><i class="bi bi-arrow-left"></i> Admin</a>
+        <h2 class="mb-0 mt-1">Users</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Username</th>
+                    <th>Player</th>
+                    <th>Role</th>
+                    <th style="width:200px"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                    <tr>
+                        <td class="fw-semibold">{{ user.username }}</td>
+                        <td class="text-muted">
+                            {% if user.player_name %}
+                                <a href="/player/{{ user.person_id }}" class="text-decoration-none">
+                                    {{ user.player_name }}
+                                </a>
+                            {% else %}
+                                <span class="text-muted fst-italic">not linked</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge
+                                {% if user.role == 'admin' %}bg-danger
+                                {% elif user.role == 'editor' %}bg-warning text-dark
+                                {% else %}bg-secondary{% endif %}">
+                                {{ user.role }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if user.id != session["user_id"] %}
+                                <form action="/admin/users/{{ user.id }}/role" method="post"
+                                      class="d-flex gap-2">
+                                    <select class="form-select form-select-sm" name="role">
+                                        <option value="viewer"  {% if user.role == 'viewer'  %}selected{% endif %}>viewer</option>
+                                        <option value="editor"  {% if user.role == 'editor'  %}selected{% endif %}>editor</option>
+                                        <option value="admin"   {% if user.role == 'admin'   %}selected{% endif %}>admin</option>
+                                    </select>
+                                    <button class="btn btn-sm btn-outline-secondary flex-shrink-0" type="submit">
+                                        <i class="bi bi-check"></i>
+                                    </button>
+                                </form>
+                            {% else %}
+                                <span class="text-muted small fst-italic">you</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,175 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import avatar %}
+
+{% block title %}Profile{% endblock %}
+
+{% block main %}
+
+<div class="row justify-content-center">
+    <div class="col-md-7 col-lg-6">
+
+        <h2 class="mb-4"><i class="bi bi-person-circle"></i> My Profile</h2>
+
+        <!-- Account info -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <i class="bi bi-info-circle"></i> Account
+            </div>
+            <div class="card-body">
+                <div class="mb-1">
+                    <span class="text-muted small">Username</span>
+                    <div class="fw-semibold">{{ user.username }}</div>
+                </div>
+                {% if user.email %}
+                    <div class="mb-1">
+                        <span class="text-muted small">Email</span>
+                        <div class="fw-semibold">{{ user.email }}</div>
+                    </div>
+                {% endif %}
+                <div>
+                    <span class="text-muted small">Role</span>
+                    <div>
+                        <span class="badge
+                            {% if user.role == 'admin' %}bg-danger
+                            {% elif user.role == 'editor' %}bg-warning text-dark
+                            {% else %}bg-secondary
+                            {% endif %}">
+                            {{ user.role }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Player link -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <i class="bi bi-person-badge"></i> Player Profile
+            </div>
+            <div class="card-body">
+                {% if linked_player %}
+                    <!-- Already linked -->
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <div class="fw-semibold">
+                                <a href="/player/{{ linked_player.id }}" class="text-decoration-none">
+                                    {{ linked_player.name }}
+                                </a>
+                            </div>
+                            {% if linked_player.nickname %}
+                                <div class="text-muted small">({{ linked_player.nickname }})</div>
+                            {% endif %}
+                        </div>
+                        <form action="/profile" method="post">
+                            <input type="hidden" name="action" value="unlink">
+                            <button class="btn btn-sm btn-outline-danger" type="submit">
+                                <i class="bi bi-x-circle"></i> Unlink
+                            </button>
+                        </form>
+                    </div>
+                    <div class="mt-3">
+                        <a href="/player/{{ linked_player.id }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-bar-chart"></i> View my stats
+                        </a>
+                    </div>
+
+                {% else %}
+                    <!-- Not linked -->
+                    <p class="text-muted small mb-3">
+                        Link your account to a player profile to see your personal stats on the dashboard.
+                    </p>
+                    {% if available_players %}
+                        <form action="/profile" method="post">
+                            <input type="hidden" name="action" value="link">
+                            <div class="d-flex gap-2">
+                                <select class="form-select form-select-sm" name="person_id" required>
+                                    <option value="" disabled selected>Select your player...</option>
+                                    {% for p in available_players %}
+                                        <option value="{{ p.id }}">
+                                            {{ p.name }}{% if p.nickname %} ({{ p.nickname }}){% endif %}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <button class="btn btn-sm btn-danger flex-shrink-0" type="submit">
+                                    Link
+                                </button>
+                            </div>
+                        </form>
+                    {% else %}
+                        <p class="text-muted small mb-0">No available players to link. Ask an admin to add you.</p>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Photo (only if linked to a player) -->
+        {% if linked_player %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white">
+                <i class="bi bi-camera"></i> My Photo
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-4 mb-3">
+                    {{ avatar(linked_player.id, linked_player.name, size=72) }}
+                    <div class="text-muted small">
+                        JPG, PNG or WEBP · Max 5MB<br>
+                        Will be cropped to a square.
+                    </div>
+                </div>
+                <form action="/profile/photo" method="post" enctype="multipart/form-data">
+                    <div class="d-flex gap-2">
+                        <input class="form-control form-control-sm" name="photo" type="file"
+                               accept=".jpg,.jpeg,.png,.webp">
+                        <button class="btn btn-sm btn-outline-danger flex-shrink-0" type="submit">
+                            Upload
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Change password -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <i class="bi bi-lock"></i> Change Password
+            </div>
+            <div class="card-body">
+                <form action="/profile" method="post">
+                    <input type="hidden" name="action" value="password">
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold" for="current_password">Current Password</label>
+                        <input class="form-control form-control-sm"
+                               id="current_password"
+                               name="current_password"
+                               required
+                               type="password">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold" for="new_password">New Password</label>
+                        <input class="form-control form-control-sm"
+                               id="new_password"
+                               name="new_password"
+                               required
+                               type="password">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold" for="confirm_password">Confirm New Password</label>
+                        <input class="form-control form-control-sm"
+                               id="confirm_password"
+                               name="confirm_password"
+                               required
+                               type="password">
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger" type="submit">
+                        <i class="bi bi-lock"></i> Update Password
+                    </button>
+                </form>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

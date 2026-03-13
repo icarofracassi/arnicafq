@@ -1,0 +1,334 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import avatar %}
+
+{% block title %}Leaderboard{% endblock %}
+
+{% block main %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0"><i class="bi bi-trophy"></i> Leaderboard</h2>
+</div>
+
+<!-- Filters -->
+<div class="card shadow-sm mb-3">
+    <div class="card-body py-2 px-3">
+        <form method="get" action="/leaderboard" class="d-flex flex-wrap gap-2 align-items-center">
+
+            <!-- Filter type tabs -->
+            <div class="btn-group btn-group-sm" role="group">
+                <input type="radio" class="btn-check" name="filter" id="f-all" value="all"
+                       {% if filter_type == 'all' %}checked{% endif %}
+                       onchange="this.form.submit()">
+                <label class="btn btn-outline-secondary" for="f-all">All time</label>
+
+                <input type="radio" class="btn-check" name="filter" id="f-timeframe" value="timeframe"
+                       {% if filter_type == 'timeframe' %}checked{% endif %}
+                       onchange="showFilter('timeframe')">
+                <label class="btn btn-outline-secondary" for="f-timeframe">Period</label>
+
+                <input type="radio" class="btn-check" name="filter" id="f-game" value="game"
+                       {% if filter_type == 'game' %}checked{% endif %}
+                       onchange="showFilter('game')">
+                <label class="btn btn-outline-secondary" for="f-game">Game</label>
+            </div>
+
+            <!-- View tabs: Stats / Punctuality -->
+            <div class="btn-group btn-group-sm ms-2" role="group">
+                <input type="radio" class="btn-check" name="view" id="v-stats" value="stats"
+                       {% if request.args.get('view','stats') == 'stats' %}checked{% endif %}
+                       onchange="switchView('stats')">
+                <label class="btn btn-outline-secondary" for="v-stats">📊 Stats</label>
+
+                <input type="radio" class="btn-check" name="view" id="v-late" value="late"
+                       {% if request.args.get('view') == 'late' %}checked{% endif %}
+                       onchange="switchView('late')">
+                <label class="btn btn-outline-danger" for="v-late">⏰ Punctuality</label>
+            </div>
+
+            <!-- Timeframe select -->
+            <div id="timeframe-select" class="d-flex gap-2 align-items-center"
+                 style="display:{% if filter_type == 'timeframe' %}flex{% else %}none{% endif %} !important">
+                <select name="timeframe" class="form-select form-select-sm" style="width:auto"
+                        onchange="this.form.submit()">
+                    <option value="">— select —</option>
+                    {% for opt in timeframe_options %}
+                        <option value="{{ opt.value }}"
+                                {% if active_timeframe == opt.value %}selected{% endif %}>
+                            {{ opt.label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Game select -->
+            <div id="game-select" class="d-flex gap-2 align-items-center"
+                 style="display:{% if filter_type == 'game' %}flex{% else %}none{% endif %} !important">
+                <select name="game_id" class="form-select form-select-sm" style="width:auto"
+                        onchange="this.form.submit()">
+                    <option value="">— select game —</option>
+                    {% for game in all_games %}
+                        <option value="{{ game.id }}"
+                                {% if active_game_id == game.id|string %}selected{% endif %}>
+                            {{ game.title }} ({{ game.date }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Active filter label -->
+            {% if filter_type != 'all' %}
+                <a href="/leaderboard" class="btn btn-sm btn-outline-danger">
+                    <i class="bi bi-x"></i> Clear
+                </a>
+            {% endif %}
+
+        </form>
+    </div>
+</div>
+
+{% if players %}
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="lb-table">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:50px">#</th>
+                        <th class="sortable" data-col="1">
+                            Player <span class="sort-icon text-muted">⇅</span>
+                        </th>
+                        <th class="sortable text-center stats-col" data-col="2">
+                            ⚽ Goals <span class="sort-icon text-muted">⇅</span>
+                        </th>
+                        <th class="sortable text-center stats-col" data-col="3">
+                            🅰️ Assists <span class="sort-icon text-muted">⇅</span>
+                        </th>
+                        <th class="sortable text-center" data-col="4">
+                            🎮 Games <span class="sort-icon text-muted">⇅</span>
+                        </th>
+                        <th class="sortable text-center stats-col" data-col="5">
+                            <i class="bi bi-person-fill text-success"></i> Field
+                            <span class="sort-icon text-muted">⇅</span>
+                        </th>
+                        <th class="sortable text-center" data-col="6">
+                            <i class="bi bi-shield-fill text-warning"></i> GK
+                            <span class="sort-icon text-muted">⇅</span>
+                        </th>
+                        <th class="sortable text-center" data-col="7">
+                            <i class="bi bi-hourglass text-secondary"></i> Bench
+                            <span class="sort-icon text-muted">⇅</span>
+                        </th>
+                        <th class="sortable text-center late-col" data-col="8">
+                            ⏰ Late Time
+                            <span class="sort-icon text-muted">⇅</span>
+                        </th>
+                        <th class="sortable text-center late-col" data-col="9">
+                            🚨 Late Games
+                            <span class="sort-icon text-muted">⇅</span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="lb-body">
+                    {% for player in players %}
+                        <tr onclick="window.location='/player/{{ player.id }}'" style="cursor:pointer"
+                            data-goals="{{ player.goals }}"
+                            data-assists="{{ player.assists }}"
+                            data-appearances="{{ player.appearances }}"
+                            data-field="{{ player.field_seconds }}"
+                            data-gk="{{ player.gk_seconds }}"
+                            data-bench="{{ player.bench_seconds }}"
+                            data-late="{{ player.late_seconds }}"
+                            data-late-games="{{ player.late_arrivals }}"
+                            data-name="{{ player.name }}">
+                            <td class="rank-cell text-muted">{{ loop.index }}</td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    {{ avatar(player.id, player.name, size=32) }}
+                                    <div>
+                                        <a href="/player/{{ player.id }}" class="text-decoration-none fw-semibold">
+                                            {{ player.name }}
+                                        </a>
+                                        {% if player.nickname %}
+                                            <span class="text-muted small">({{ player.nickname }})</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-center fw-bold stats-col">{{ player.goals }}</td>
+                            <td class="text-center stats-col">{{ player.assists }}</td>
+                            <td class="text-center text-muted">{{ player.appearances }}</td>
+                            <td class="text-center text-muted small stats-col">
+                                {% if player.field_seconds %}
+                                    {{ player.field_seconds // 3600 }}h{{ '%02d'|format((player.field_seconds % 3600) // 60) }}
+                                {% else %}—{% endif %}
+                            </td>
+                            <td class="text-center small">
+                                {% if player.gk_seconds %}
+                                    <span style="color:#856404">
+                                        {{ player.gk_seconds // 3600 }}h{{ '%02d'|format((player.gk_seconds % 3600) // 60) }}
+                                    </span>
+                                {% else %}—{% endif %}
+                            </td>
+                            <td class="text-center text-muted small">
+                                {% if player.bench_seconds %}
+                                    {{ player.bench_seconds // 3600 }}h{{ '%02d'|format((player.bench_seconds % 3600) // 60) }}
+                                {% else %}—{% endif %}
+                            </td>
+                            <td class="text-center small late-col">
+                                {% if player.late_seconds %}
+                                    <span class="text-danger fw-semibold">
+                                        {% set lm = player.late_seconds // 60 %}
+                                        {% if lm >= 60 %}
+                                            {{ lm // 60 }}h{{ '%02d'|format(lm % 60) }}
+                                        {% else %}
+                                            {{ lm }}m
+                                        {% endif %}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center small late-col">
+                                {% if player.late_arrivals %}
+                                    <span class="text-danger">{{ player.late_arrivals }}×</span>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer bg-white text-muted small py-2 px-3">
+            {{ players | length }} player{{ 's' if players | length != 1 }}
+            {% if filter_type == 'game' and active_game_id %}
+                · filtered by game
+            {% elif filter_type == 'timeframe' and active_timeframe %}
+                · {{ active_timeframe }}
+            {% endif %}
+        </div>
+    </div>
+{% else %}
+    <div class="text-center text-muted mt-5">
+        <i class="bi bi-trophy" style="font-size:3rem"></i>
+        <p class="mt-3">No stats for this filter. Try a different period.</p>
+    </div>
+{% endif %}
+
+<style>
+    .sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+    .sortable:hover { background: #f0f0f0; }
+    .sort-icon { font-size: 0.7rem; opacity: 0.5; }
+    .sort-asc  .sort-icon::after { content: ' ↑'; opacity: 1; color: #dc3545; }
+    .sort-desc .sort-icon::after { content: ' ↓'; opacity: 1; color: #dc3545; }
+    th.sort-asc  .sort-icon,
+    th.sort-desc .sort-icon { opacity: 0; }
+    .rank-medal { font-size: 1.1rem; }
+    /* Stats cols hidden in punctuality view; late cols hidden in stats view */
+    #lb-table:not(.show-late) .late-col  { display: none; }
+    #lb-table.show-late       .stats-col { display: none; }
+</style>
+
+<script>
+    // ── Filter visibility ─────────────────────────────────────
+    function showFilter(type) {
+        document.getElementById('timeframe-select').style.display = type === 'timeframe' ? 'flex' : 'none';
+        document.getElementById('game-select').style.display      = type === 'game'      ? 'flex' : 'none';
+        if (type !== 'timeframe' && type !== 'game') {
+            document.querySelector('form').submit();
+        }
+    }
+
+    // ── Sortable columns ──────────────────────────────────────
+    const colKeys = {
+        1: { key: 'name',        numeric: false },
+        2: { key: 'goals',       numeric: true  },
+        3: { key: 'assists',     numeric: true  },
+        4: { key: 'appearances', numeric: true  },
+        5: { key: 'field',       numeric: true  },
+        6: { key: 'gk',         numeric: true  },
+        7: { key: 'bench',      numeric: true  },
+        8: { key: 'late',       numeric: true  },
+        9: { key: 'lateGames',  numeric: true  },
+    };
+
+    // ── View switching: Stats / Punctuality ──────────────────
+    const currentView = new URLSearchParams(window.location.search).get('view') || 'stats';
+
+    function switchView(view) {
+        // Persist view in URL without full reload
+        const url = new URL(window.location);
+        url.searchParams.set('view', view);
+        window.history.replaceState({}, '', url);
+        applyView(view);
+    }
+
+    function applyView(view) {
+        const table = document.getElementById('lb-table');
+        if (view === 'late') {
+            table.classList.add('show-late');
+            // Auto-sort by late_seconds desc when switching to punctuality
+            sortTable(8, true);
+            document.querySelectorAll('th.sortable').forEach(h => h.classList.remove('sort-asc','sort-desc'));
+            document.querySelector('th[data-col="8"]').classList.add('sort-desc');
+        } else {
+            table.classList.remove('show-late');
+        }
+    }
+
+    // Apply on load
+    document.addEventListener('DOMContentLoaded', () => applyView(currentView));
+
+    let sortCol  = null;
+    let sortDesc = true;  // default: highest first for numeric
+
+    document.querySelectorAll('th.sortable').forEach(th => {
+        th.addEventListener('click', () => {
+            const col = parseInt(th.dataset.col);
+            if (sortCol === col) {
+                sortDesc = !sortDesc;
+            } else {
+                sortCol  = col;
+                sortDesc = colKeys[col].numeric; // numeric default desc, text default asc
+            }
+            sortTable(col, sortDesc);
+            // Update header classes
+            document.querySelectorAll('th.sortable').forEach(h => {
+                h.classList.remove('sort-asc', 'sort-desc');
+            });
+            th.classList.add(sortDesc ? 'sort-desc' : 'sort-asc');
+        });
+    });
+
+    function sortTable(col, desc) {
+        const tbody = document.getElementById('lb-body');
+        const rows  = Array.from(tbody.querySelectorAll('tr'));
+        const { key, numeric } = colKeys[col];
+
+        rows.sort((a, b) => {
+            let va = a.dataset[key];
+            let vb = b.dataset[key];
+            if (numeric) {
+                va = parseFloat(va) || 0;
+                vb = parseFloat(vb) || 0;
+                return desc ? vb - va : va - vb;
+            } else {
+                return desc ? vb.localeCompare(va) : va.localeCompare(vb);
+            }
+        });
+
+        rows.forEach((row, i) => {
+            tbody.appendChild(row);
+            // Update rank number and medal
+            const rankCell = row.querySelector('.rank-cell');
+            const rank = i + 1;
+            if (col === 2) {  // only show medals when sorted by goals
+                rankCell.innerHTML = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
+            } else {
+                rankCell.textContent = rank;
+            }
+        });
+    }
+</script>
+
+{% endblock %}

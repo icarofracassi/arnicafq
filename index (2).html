@@ -1,0 +1,587 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import avatar, event_timeline, roster_sidebar_html, timeline_filter_js %}
+
+{% block title %}{{ game.title }}{% endblock %}
+
+{% block main %}
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+        <a href="/games" class="text-muted small text-decoration-none">
+            <i class="bi bi-arrow-left"></i> All Games
+        </a>
+        <h2 class="mt-1 mb-0">{{ game.title }}</h2>
+        <div class="text-muted small">
+            <i class="bi bi-calendar3"></i> {{ game.date }}
+            &nbsp;·&nbsp;
+            <i class="bi bi-geo-alt"></i> {{ game.location }}
+        </div>
+    </div>
+    {% if session.get("role") in ["admin", "editor"] %}
+        <div class="d-flex gap-2">
+            <a href="/games/{{ game.id }}/edit" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-pencil"></i> Edit
+            </a>
+            <a href="/games/{{ game.id }}/events" class="btn btn-sm btn-outline-danger">
+                <i class="bi bi-play-circle"></i> Log Events
+            </a>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Live scoreboard bar (synced to video) -->
+{% if segments %}
+<div class="card shadow-sm mb-3" id="live-score-bar">
+    <div class="card-body py-2 px-3 d-flex align-items-center gap-3">
+        <!-- Current matchup -->
+        <div class="d-flex align-items-center gap-2 flex-grow-1 justify-content-center" id="live-matchup">
+            <span class="d-flex align-items-center gap-1">
+                <span class="seg-dot" id="live-dot-a" style="background:transparent"></span>
+                <span class="fw-semibold text-capitalize small" id="live-team-a">—</span>
+            </span>
+            <span class="fw-bold" id="live-score" style="font-size:1.3rem;letter-spacing:0.08em">0–0</span>
+            <span class="d-flex align-items-center gap-1">
+                <span class="fw-semibold text-capitalize small" id="live-team-b">—</span>
+                <span class="seg-dot" id="live-dot-b" style="background:transparent"></span>
+            </span>
+        </div>
+        <!-- Segment progress dots -->
+        <div class="d-flex gap-1 flex-shrink-0" id="live-dots">
+            {% for seg in segments %}
+                <span class="live-seg-dot" data-idx="{{ loop.index0 }}"></span>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- YouTube player (full width) -->
+{% if youtube_embed %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-body p-0">
+            <div class="ratio ratio-16x9">
+                <iframe id="yt-player"
+                        src="{{ youtube_embed }}"
+                        title="Game video"
+                        frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        referrerpolicy="strict-origin-when-cross-origin"
+                        allowfullscreen>
+                </iframe>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+<!-- Segment strip: scrollable chips -->
+{% if segments %}
+<div class="seg-strip mb-3" id="seg-strip">
+    {% if game_start_event %}
+        {% set gs_parts = game_start_event.timestamp.split(':') %}
+        {% set gs_secs  = gs_parts[0]|int * 3600 + gs_parts[1]|int * 60 + gs_parts[2]|int %}
+        <div class="seg-chip seg-chip-warmup" id="seg-chip-warmup"
+             data-start="0"
+             data-end="{{ gs_secs }}"
+             {% if youtube_embed %}onclick="seekTo(0)" style="cursor:pointer"{% endif %}
+             title="Warmup · 00:00:00 → {{ game_start_event.timestamp }}">
+            <span style="font-size:0.8rem">⏱</span>
+            <span class="seg-score" style="font-size:0.75rem;font-weight:600;color:#6c757d">Warmup</span>
+        </div>
+    {% endif %}
+    {% for seg in segments %}
+        {% set start_parts = seg.started_at.split(':') %}
+        {% set start_secs  = start_parts[0]|int * 3600 + start_parts[1]|int * 60 + start_parts[2]|int %}
+        <div class="seg-chip" id="seg-chip-{{ loop.index0 }}"
+             data-start="{{ start_secs }}"
+             data-end="{% if seg.ended_at %}{{ seg.ended_at.split(':')[0]|int * 3600 + seg.ended_at.split(':')[1]|int * 60 + seg.ended_at.split(':')[2]|int }}{% else %}999999{% endif %}"
+             {% if youtube_embed %}onclick="seekTo({{ start_secs }})" style="cursor:pointer"{% endif %}
+             title="{{ seg.team_a_color }} vs {{ seg.team_b_color }} · {{ seg.started_at }}">
+            <span class="seg-dot" style="background:{{ seg.team_a_color }}"></span>
+            <span class="seg-score">{{ seg.score_a }}–{{ seg.score_b }}</span>
+            <span class="seg-dot" style="background:{{ seg.team_b_color }}"></span>
+        </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="row g-4">
+
+    <!-- Event Timeline -->
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <span><i class="bi bi-list-ul"></i> Event Timeline
+                    {% if youtube_embed %}
+                        <span class="text-muted small ms-2">— click a timestamp to seek</span>
+                    {% endif %}
+                </span>
+            </div>
+            <div class="card-body p-0 px-3 pt-2">
+                {{ event_timeline(events, youtube_embed) }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar: players by team, fully driven by JS roster timeline -->
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-people"></i> Roster</span>
+                {% if youtube_embed %}
+                    <button class="btn btn-sm btn-outline-secondary" onclick="syncNow()" title="Sync to current video time">
+                        <i class="bi bi-arrow-clockwise"></i> Sync
+                    </button>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {{ roster_sidebar_html(players) }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* ── Segment strip ─────────────────────────────────── */
+.seg-strip {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+}
+.seg-strip::-webkit-scrollbar { height: 4px; }
+.seg-strip::-webkit-scrollbar-thumb { background: #dee2e6; border-radius: 2px; }
+
+.seg-chip-warmup { border-style: dashed; border-color: #adb5bd; background: #f8f9fa; }
+.seg-chip-warmup.active { border-color: #6c757d; background: #fff; }
+.seg-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border-radius: 20px;
+    border: 2px solid transparent;
+    background: #f8f9fa;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: border-color 0.25s, background 0.25s, box-shadow 0.25s;
+    user-select: none;
+}
+.seg-chip.active {
+    border-color: #dc3545;
+    background: #fff;
+    box-shadow: 0 1px 6px rgba(220,53,69,0.15);
+}
+.seg-chip:hover { background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+
+.seg-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.15);
+    flex-shrink: 0;
+    display: inline-block;
+}
+.seg-score {
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.04em;
+}
+
+/* ── Live score bar ────────────────────────────────── */
+#live-score-bar {
+    transition: opacity 0.3s;
+}
+.live-seg-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #dee2e6;
+    display: inline-block;
+    transition: background 0.25s, transform 0.25s;
+}
+.live-seg-dot.active {
+    background: #dc3545;
+    transform: scale(1.3);
+}
+</style>
+
+{% if youtube_embed %}
+{{ timeline_filter_js() }}
+
+<script>
+    // ── Data from server ─────────────────────────────────────
+    const segments = [
+        {% for seg in segments %}
+        {
+            team_a_id:  {{ seg.team_a_id }},
+            team_b_id:  {{ seg.team_b_id }},
+            started_at: "{{ seg.started_at }}",
+            ended_at:   "{{ seg.ended_at or '' }}"
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    // Full materialized roster timeline from roster_snapshots
+    // { timestamps: [...], snapshots: { "HH:MM:SS": [{person_id, name, team_id, team_color, is_goalkeeper}] } }
+    let rosterTimeline = {{ roster_timeline_json | safe }};
+
+    // ── Utilities ────────────────────────────────────────────
+    function timeToSecs(t) {
+        if (!t) return Infinity;
+        const [h, m, s] = t.split(':').map(Number);
+        return h * 3600 + m * 60 + s;
+    }
+
+    function getActiveTeams(currentSecs) {
+        for (const seg of segments) {
+            const start = timeToSecs(seg.started_at);
+            const end   = seg.ended_at ? timeToSecs(seg.ended_at) : Infinity;
+            if (currentSecs >= start && currentSecs < end) {
+                return [seg.team_a_id, seg.team_b_id];
+            }
+        }
+        if (segments.length) {
+            const last = segments[segments.length - 1];
+            return [last.team_a_id, last.team_b_id];
+        }
+        return [];
+    }
+
+    // Binary search: find latest snapshot timestamp <= currentSecs
+    function getSnapshotAt(currentSecs) {
+        const tss = rosterTimeline.timestamps;
+        if (!tss || !tss.length) return null;
+
+        let lo = 0, hi = tss.length - 1, result = null;
+        while (lo <= hi) {
+            const mid = (lo + hi) >> 1;
+            if (timeToSecs(tss[mid]) <= currentSecs) {
+                result = tss[mid];
+                lo = mid + 1;
+            } else {
+                hi = mid - 1;
+            }
+        }
+        return result ? rosterTimeline.snapshots[result] : null;
+    }
+
+    // ── Sidebar rendering ─────────────────────────────────────
+    let lastKey = null;
+
+    // CSS for roster animations (injected once)
+    (function injectRosterStyles() {
+        const s = document.createElement('style');
+        s.textContent = `
+            .player-entry {
+                position: relative;
+                overflow: hidden;
+            }
+            .player-entry.entering {
+                animation: playerIn 0.4s ease forwards;
+            }
+            .player-entry.leaving {
+                animation: playerOut 0.35s ease forwards;
+                pointer-events: none;
+            }
+            @keyframes playerIn {
+                from { opacity: 0; transform: translateX(-14px); background: rgba(40,167,69,0.15); }
+                60%  { background: rgba(40,167,69,0.1); }
+                to   { opacity: 1; transform: translateX(0);     background: transparent; }
+            }
+            @keyframes playerOut {
+                from { opacity: 1; transform: translateX(0);     background: transparent; }
+                40%  { background: rgba(220,53,69,0.12); }
+                to   { opacity: 0; transform: translateX(14px);  background: rgba(220,53,69,0.08); }
+            }
+
+            .team-block-header { transition: opacity 0.2s ease; }
+        `;
+        document.head.appendChild(s);
+    })();
+
+    function updateSidebar(currentSecs) {
+        const activeTeams = getActiveTeams(currentSecs);
+        if (!activeTeams.length) return;
+
+        const snapshot = getSnapshotAt(currentSecs);
+        if (!snapshot) return;
+
+        const snapshotKey = activeTeams.join(',') + '|' + JSON.stringify(snapshot.map(p => p.person_id + ':' + p.team_id + ':' + p.is_goalkeeper));
+        if (snapshotKey === lastKey) return;
+        lastKey = snapshotKey;
+
+        const onField  = document.getElementById('on-field');
+        const bench    = document.getElementById('bench');
+        const benchSec = document.getElementById('bench-section');
+
+        // Group snapshot by team
+        const byTeam = {};
+        const benchPlayers = [];
+
+        for (const p of snapshot) {
+            if (activeTeams.includes(p.team_id)) {
+                if (!byTeam[p.team_id]) byTeam[p.team_id] = { color: p.team_color, gk: [], field: [] };
+                if (p.is_goalkeeper) byTeam[p.team_id].gk.push(p);
+                else                 byTeam[p.team_id].field.push(p);
+            } else {
+                benchPlayers.push(p);
+            }
+        }
+
+        // ── Animate out removed players ──────────────────────
+        // Build a map of what the new snapshot expects: personId -> is_goalkeeper
+        const newOnFieldMap  = new Map(snapshot.filter(p => p.team_id && activeTeams.includes(p.team_id)).map(p => [p.person_id, p.is_goalkeeper]));
+        const newBenchMap    = new Map(benchPlayers.map(p => [p.person_id, p.is_goalkeeper]));
+
+        onField.querySelectorAll('.player-entry').forEach(el => {
+            const pid = parseInt(el.dataset.personId);
+            const gkClass = el.classList.contains('player-gk');
+            const newGk   = newOnFieldMap.get(pid);
+            // Remove if no longer on field, OR if GK status changed (re-render needed)
+            if (!newOnFieldMap.has(pid) || (newGk === 1) !== gkClass) {
+                el.classList.add('leaving');
+                el.addEventListener('animationend', () => el.remove(), { once: true });
+            }
+        });
+        bench.querySelectorAll('.player-entry').forEach(el => {
+            const pid = parseInt(el.dataset.personId);
+            if (!newBenchMap.has(pid)) {
+                el.classList.add('leaving');
+                el.addEventListener('animationend', () => el.remove(), { once: true });
+            }
+        });
+
+        // ── Render / update on-field (after leave animations clear) ─
+        setTimeout(() => {
+            for (const teamId of activeTeams) {
+                const group = byTeam[teamId];
+                if (!group) continue;
+
+                let block = onField.querySelector(`.team-block[data-team-id="${teamId}"]`);
+                if (!block) {
+                    block = document.createElement('div');
+                    block.className = 'team-block mb-2';
+                    block.dataset.teamId = teamId;
+                    block.innerHTML = `
+                        <div class="team-block-header d-flex align-items-center gap-2 mb-1">
+                            <span style="width:12px;height:12px;border-radius:50%;background:${group.color};border:1px solid rgba(0,0,0,0.15);display:inline-block"></span>
+                            <span class="fw-semibold small text-capitalize">${group.color}</span>
+                        </div>`;
+                    onField.appendChild(block);
+                }
+
+                // existingIds re-checked after leaves have been removed
+                const existingIds = new Set([...block.querySelectorAll('.player-entry:not(.leaving)')].map(e => parseInt(e.dataset.personId)));
+                // GKs first, then field players — insertPlayerEl maintains that order
+                for (const p of [...group.gk, ...group.field]) {
+                    if (!existingIds.has(p.person_id)) {
+                        const el = makePlayerEl(p);
+                        el.classList.add('entering');
+                        el.addEventListener('animationend', () => el.classList.remove('entering'), { once: true });
+                        insertPlayerEl(block, el, p.is_goalkeeper);
+                    }
+                }
+            }
+
+            // ── Render / update bench ────────────────────────
+            const existingBenchIds = new Set([...bench.querySelectorAll('.player-entry:not(.leaving)')].map(e => parseInt(e.dataset.personId)));
+            for (const p of benchPlayers) {
+                if (!existingBenchIds.has(p.person_id)) {
+                    const el = makePlayerEl(p);
+                    el.classList.add('entering');
+                    el.addEventListener('animationend', () => el.classList.remove('entering'), { once: true });
+                    bench.appendChild(el);
+                }
+            }
+            benchSec.style.display = benchPlayers.length ? '' : 'none';
+        }, 320); // just after the 300ms leave animation
+    }
+
+    function makePlayerEl(p) {
+        const el = document.createElement('div');
+        el.className = 'ms-3 player-entry' + (p.is_goalkeeper ? ' player-gk' : '');
+        el.dataset.personId = p.person_id;
+        el.dataset.isGk = p.is_goalkeeper ? '1' : '0';
+        const gkBadge = p.is_goalkeeper
+            ? `<span class="badge ms-1 d-inline-flex align-items-center gap-1"
+                     style="background:#fff3cd;color:#856404;font-size:0.6rem;padding:1px 5px;border-radius:8px;border:1px solid #ffd666">
+                   <i class="bi bi-shield-fill" style="font-size:0.55rem"></i> GK
+               </span>`
+            : '';
+        el.innerHTML = `
+            <div class="d-flex align-items-center gap-1 py-1">
+                <a href="/player/${p.person_id}" class="text-decoration-none small">${p.name}</a>
+                ${gkBadge}
+            </div>`;
+        return el;
+    }
+
+    // Insert a player entry keeping GKs always at the top of the block
+    function insertPlayerEl(block, el, isGk) {
+        if (isGk) {
+            // Insert before the first non-GK player entry (after header + existing GKs)
+            const firstField = block.querySelector('.player-entry:not(.player-gk):not(.leaving)');
+            if (firstField) {
+                block.insertBefore(el, firstField);
+                return;
+            }
+        }
+        block.appendChild(el);
+    }
+
+    // ── Called from events_route response to update timeline live ──
+    function updateRosterTimeline(newTimeline) {
+        rosterTimeline = newTimeline;
+    }
+
+    // ── YouTube + polling ─────────────────────────────────────
+    let player;
+    let syncInterval = null;
+
+    // Parse ?t=HH:MM:SS from URL if present
+    function getSeekTarget() {
+        const t = new URLSearchParams(window.location.search).get('t');
+        if (!t) return null;
+        const parts = t.split(':').map(Number);
+        if (parts.length === 3 && parts.every(n => !isNaN(n))) {
+            return parts[0] * 3600 + parts[1] * 60 + parts[2];
+        }
+        return null;
+    }
+
+    // Seek target — prefer server-injected value (already in embed URL as start=)
+    const SEEK_TARGET = {% if seek_seconds is not none and seek_seconds is defined %}{{ seek_seconds }}{% else %}null{% endif %};
+
+    window.onYouTubeIframeAPIReady = function() {
+        player = new YT.Player('yt-player', {
+            events: {
+                'onReady': () => {
+                    // start= in embed URL handles the video position;
+                    // we just need to sync the sidebar to the same point
+                    const startAt = SEEK_TARGET !== null ? SEEK_TARGET : 0;
+                    updateSidebar(startAt);
+                    updateLiveScore(startAt);
+                    if (SEEK_TARGET !== null) {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                    startAutoSync();
+                },
+                'onStateChange': (e) => {
+                    if (e.data === 1) startAutoSync();
+                    else stopAutoSync();
+                }
+            }
+        });
+    };
+
+    // Initial render even before video loads
+    document.addEventListener('DOMContentLoaded', () => { updateSidebar(SEEK_TARGET !== null ? SEEK_TARGET : 0); updateLiveScore(SEEK_TARGET !== null ? SEEK_TARGET : 0); });
+
+    // ── Live score bar + segment strip ───────────────────
+    const segData = [
+        {% for seg in segments %}
+        {
+            teamAColor: "{{ seg.team_a_color }}",
+            teamBColor: "{{ seg.team_b_color }}",
+            teamAId: {{ seg.team_a_id }},
+            teamBId: {{ seg.team_b_id }},
+            start: {{ seg.started_at.split(':')[0]|int * 3600 + seg.started_at.split(':')[1]|int * 60 + seg.started_at.split(':')[2]|int }},
+            end: {% if seg.ended_at %}{{ seg.ended_at.split(':')[0]|int * 3600 + seg.ended_at.split(':')[1]|int * 60 + seg.ended_at.split(':')[2]|int }}{% else %}999999{% endif %}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    // All goals: { secs, teamId } — sorted by time
+    const allGoals = {{ all_goals_json | safe }}.map(g => ({
+        secs:   timeToSecs(g.timestamp),
+        teamId: g.team_id
+    }));
+
+    let lastSegIdx = -2;
+    let lastScoreSecs = -1;
+
+    function updateLiveScore(currentSecs) {
+        if (!segData.length) return;
+        const displaySecs = Math.max(0, currentSecs - 10); // 10s spoiler delay
+
+        // Find active segment index (no delay — responds immediately to seeks)
+        let idx = segData.length - 1;
+        for (let i = 0; i < segData.length; i++) {
+            if (currentSecs >= segData[i].start && currentSecs < segData[i].end) {
+                idx = i;
+                break;
+            }
+        }
+        const seg = segData[idx];
+
+        // Highlight active chip + progress dot
+        document.querySelectorAll('.seg-chip').forEach((chip, i) =>
+            chip.classList.toggle('active', i === idx));
+        document.querySelectorAll('.live-seg-dot').forEach((dot, i) =>
+            dot.classList.toggle('active', i === idx));
+
+        // Count goals scored within this segment up to displaySecs
+        let scoreA = 0, scoreB = 0;
+        for (const g of allGoals) {
+            if (g.secs < seg.start) continue;
+            if (g.secs > displaySecs) break;
+            if (g.secs > seg.end) break;
+            if (g.teamId === seg.teamAId) scoreA++;
+            else if (g.teamId === seg.teamBId) scoreB++;
+        }
+
+        // Update bar text if segment or score changed
+        const scoreKey = idx + ':' + scoreA + ':' + scoreB;
+        if (scoreKey === lastSegIdx) return;
+        lastSegIdx = scoreKey;
+
+        document.getElementById('live-dot-a').style.background = seg.teamAColor;
+        document.getElementById('live-dot-b').style.background = seg.teamBColor;
+        document.getElementById('live-team-a').textContent = seg.teamAColor;
+        document.getElementById('live-team-b').textContent = seg.teamBColor;
+        document.getElementById('live-score').textContent = scoreA + '–' + scoreB;
+
+        // Scroll active chip into view in the strip
+        const chip = document.getElementById('seg-chip-' + idx);
+        if (chip) chip.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+
+    function startAutoSync() {
+        if (syncInterval) return;
+        syncInterval = setInterval(() => {
+            if (player && player.getCurrentTime) {
+                const t = Math.floor(player.getCurrentTime());
+                updateSidebar(t);
+                updateLiveScore(t);
+            }
+        }, 3000);
+    }
+
+    function stopAutoSync() {
+        clearInterval(syncInterval);
+        syncInterval = null;
+    }
+
+    function syncNow() {
+        if (player && player.getCurrentTime) {
+            const t = Math.floor(player.getCurrentTime());
+            updateSidebar(t);
+            updateLiveScore(t);
+        }
+    }
+
+    function seekTo(seconds) {
+        if (player && player.seekTo) {
+            player.seekTo(seconds, true);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            updateSidebar(seconds);
+            updateLiveScore(seconds);
+        }
+    }
+</script>
+<script src="https://www.youtube.com/iframe_api"></script>
+{% endif %}
+
+{% endblock %}

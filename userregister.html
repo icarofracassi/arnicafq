@@ -1,0 +1,217 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import avatar %}
+{% block title %}Search{% endblock %}
+
+{% block main %}
+
+<div class="row justify-content-center">
+<div class="col-lg-8">
+
+    <!-- Search bar (large, on-page) -->
+    <form action="/search" method="get" class="mb-4">
+        <div class="input-group input-group-lg shadow-sm">
+            <span class="input-group-text bg-white border-end-0">
+                <i class="bi bi-search text-muted"></i>
+            </span>
+            <input type="text"
+                   name="q"
+                   id="searchInput"
+                   class="form-control border-start-0 ps-0"
+                   placeholder="Search players, games, events…"
+                   value="{{ q }}"
+                   autofocus
+                   autocomplete="off">
+            {% if q %}
+                <a href="/search" class="btn btn-outline-secondary" title="Clear">
+                    <i class="bi bi-x-lg"></i>
+                </a>
+            {% endif %}
+            <button class="btn btn-danger" type="submit">Search</button>
+        </div>
+    </form>
+
+    {% if too_short %}
+        <p class="text-muted">Enter at least 2 characters to search.</p>
+
+    {% elif results is none %}
+        <p class="text-muted">What are you looking for?</p>
+
+    {% elif total == 0 %}
+        <div class="text-center py-5">
+            <i class="bi bi-search display-4 text-muted d-block mb-3"></i>
+            <p class="text-muted mb-0">No results for <strong>{{ q }}</strong></p>
+        </div>
+
+    {% else %}
+
+        <p class="text-muted small mb-4">
+            {{ total }} result{{ 's' if total != 1 }} for <strong>{{ q }}</strong>
+        </p>
+
+        <!-- ── Players ──────────────────────────────────────── -->
+        {% if results.players %}
+        <section class="mb-5">
+            <h6 class="text-uppercase text-muted small fw-bold letter-spacing-1 mb-3">
+                <i class="bi bi-people"></i> Players
+                <span class="badge bg-secondary fw-normal ms-1">{{ results.players | length }}</span>
+            </h6>
+            <div class="list-group shadow-sm">
+                {% for p in results.players %}
+                <a href="/player/{{ p.id }}" class="list-group-item list-group-item-action d-flex align-items-center gap-3 py-2">
+                    {{ avatar(p.id, p.name, size=36) }}
+                    <div>
+                        <span class="fw-semibold">{{ p.name }}</span>
+                        {% if p.nickname %}
+                            <span class="text-muted small ms-1">({{ p.nickname }})</span>
+                        {% endif %}
+                    </div>
+                    <i class="bi bi-chevron-right text-muted ms-auto"></i>
+                </a>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- ── Games ────────────────────────────────────────── -->
+        {% if results.games %}
+        <section class="mb-5">
+            <h6 class="text-uppercase text-muted small fw-bold letter-spacing-1 mb-3">
+                <i class="bi bi-calendar3"></i> Games
+                <span class="badge bg-secondary fw-normal ms-1">{{ results.games | length }}</span>
+            </h6>
+            <div class="list-group shadow-sm">
+                {% for g in results.games %}
+                <a href="/games/{{ g.id }}" class="list-group-item list-group-item-action d-flex align-items-center gap-3 py-2">
+                    <div class="text-center text-muted" style="min-width:40px">
+                        <div class="fw-bold" style="font-size:0.8rem;line-height:1">{{ g.date[8:10] }}</div>
+                        <div style="font-size:0.7rem">{{ g.date[5:7] }}/{{ g.date[0:4] }}</div>
+                    </div>
+                    <div>
+                        <span class="fw-semibold">{{ g.title }}</span>
+                        <span class="text-muted small ms-2">
+                            <i class="bi bi-geo-alt"></i> {{ g.location }}
+                        </span>
+                    </div>
+                    <i class="bi bi-chevron-right text-muted ms-auto"></i>
+                </a>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- ── Events ───────────────────────────────────────── -->
+        {% if results.events %}
+        <section class="mb-5">
+            <h6 class="text-uppercase text-muted small fw-bold letter-spacing-1 mb-3">
+                <i class="bi bi-lightning"></i> Events
+                <span class="badge bg-secondary fw-normal ms-1">{{ results.events | length }}</span>
+            </h6>
+            <div class="list-group shadow-sm">
+                {% for e in results.events %}
+
+                {% set icon, color, label =
+                    ('trophy',            'text-warning',   'Goal')         if e.type == 'goal'         else
+                    ('arrow-left-right',  'text-secondary', 'Substitution') if e.type == 'substitution' else
+                    ('bandaid',           'text-danger',    'Injury')        if e.type == 'injury'       else
+                    ('camera-video',      'text-primary',   'Highlight')    if e.type == 'highlight'    else
+                    ('slash-circle',      'text-danger',    'Card')         if e.type == 'card'         else
+                    ('arrow-left-right',  'text-info',      'Team Change')  if e.type == 'team_change'  else
+                    ('dot',               'text-muted',     e.type)
+                %}
+
+                <a href="/games/{{ e.game_id }}?t={{ e.timestamp }}"
+                   class="list-group-item list-group-item-action py-2">
+                    <div class="d-flex align-items-start gap-3">
+
+                        <!-- Type icon -->
+                        <div class="text-center flex-shrink-0 mt-1" style="width:28px">
+                            <i class="bi bi-{{ icon }} {{ color }}"></i>
+                        </div>
+
+                        <!-- Content -->
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                                <span class="badge bg-light text-dark border small">{{ label }}</span>
+                                <span class="text-muted small">
+                                    <i class="bi bi-clock"></i> {{ e.timestamp[:5] }}
+                                </span>
+                                <span class="text-muted small">·</span>
+                                <span class="text-muted small">
+                                    <i class="bi bi-calendar3"></i>
+                                    {{ e.game_title }} ({{ e.game_date }})
+                                </span>
+                            </div>
+
+                            <!-- Describe the event -->
+                            <div class="small">
+                                {% if e.type == 'goal' %}
+                                    {% if e.person_name %}
+                                        <span class="fw-semibold">{{ e.person_nickname or e.person_name }}</span> scored
+                                    {% endif %}
+                                    {% if e.linked_person_name and e.link_type == 'assist' %}
+                                        · assist by <span class="fw-semibold">{{ e.linked_person_nickname or e.linked_person_name }}</span>
+                                    {% endif %}
+
+                                {% elif e.type == 'substitution' %}
+                                    {% if e.player_on_name %}
+                                        <span class="fw-semibold">{{ e.player_on_nickname or e.player_on_name }}</span>
+                                        <i class="bi bi-arrow-up text-success"></i> on
+                                    {% endif %}
+                                    {% if e.player_off_name %}
+                                        · <span class="fw-semibold">{{ e.player_off_nickname or e.player_off_name }}</span>
+                                        <i class="bi bi-arrow-down text-danger"></i> off
+                                    {% endif %}
+
+                                {% elif e.type == 'injury' %}
+                                    {% if e.person_name %}
+                                        <span class="fw-semibold">{{ e.person_nickname or e.person_name }}</span>
+                                    {% endif %}
+                                    {% if e.linked_person_name and e.link_type == 'foul_on' %}
+                                        · foul by <span class="fw-semibold">{{ e.linked_person_nickname or e.linked_person_name }}</span>
+                                    {% endif %}
+
+                                {% elif e.type == 'highlight' %}
+                                    {% if e.person_name %}
+                                        <span class="fw-semibold">{{ e.person_nickname or e.person_name }}</span>
+                                    {% endif %}
+                                    {% if e.linked_person_name and e.link_type == 'featured' %}
+                                        · feat. <span class="fw-semibold">{{ e.linked_person_nickname or e.linked_person_name }}</span>
+                                    {% endif %}
+
+                                {% elif e.type == 'card' %}
+                                    {% if e.person_name %}
+                                        <span class="fw-semibold">{{ e.person_nickname or e.person_name }}</span>
+                                    {% endif %}
+                                    {% if e.linked_person_name and e.link_type == 'foul_on' %}
+                                        · foul on <span class="fw-semibold">{{ e.linked_person_nickname or e.linked_person_name }}</span>
+                                    {% endif %}
+
+                                {% elif e.type == 'team_change' %}
+                                    {% if e.player_on_name %}
+                                        <span class="fw-semibold">{{ e.player_on_nickname or e.player_on_name }}</span> changed team
+                                    {% elif e.person_name %}
+                                        <span class="fw-semibold">{{ e.person_nickname or e.person_name }}</span> changed team
+                                    {% endif %}
+
+                                {% endif %}
+
+                                {% if e.notes %}
+                                    <span class="text-muted"> · {{ e.notes }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <i class="bi bi-chevron-right text-muted flex-shrink-0 mt-1"></i>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+    {% endif %}
+
+</div>
+</div>
+
+{% endblock %}

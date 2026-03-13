@@ -1,0 +1,257 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Log In
+{% endblock %}
+
+{% block main %}
+
+<style>
+    .login-wrap {
+        min-height: calc(100vh - 80px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+    }
+
+    .login-card {
+        width: 100%;
+        max-width: 380px;
+    }
+
+    .login-brand {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .login-brand .brand-name {
+        font-size: 2rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        line-height: 1;
+    }
+
+    .login-brand .brand-name .red {
+        color: #dc3545;
+    }
+
+    .login-brand .brand-sub {
+        font-size: 0.75rem;
+        color: #adb5bd;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        margin-top: 0.25rem;
+    }
+
+    .login-card .card {
+        border: 1px solid #dee2e6;
+        border-radius: 12px;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+    }
+
+    .login-card .card-body {
+        padding: 2rem;
+    }
+
+    .login-card .form-label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #6c757d;
+        margin-bottom: 0.35rem;
+    }
+
+    .login-card .form-control {
+        border-radius: 8px;
+        padding: 0.6rem 0.85rem;
+        font-size: 0.95rem;
+        border-color: #dee2e6;
+        transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .login-card .form-control:focus {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.12);
+    }
+
+    .login-card .input-group-text {
+        border-radius: 8px 0 0 8px;
+        background: #f8f9fa;
+        border-color: #dee2e6;
+        color: #adb5bd;
+    }
+
+    .login-card .input-group .form-control {
+        border-radius: 0 8px 8px 0;
+    }
+
+    .btn-login {
+        width: 100%;
+        padding: 0.65rem;
+        font-weight: 700;
+        font-size: 0.9rem;
+        letter-spacing: 0.04em;
+        border-radius: 8px;
+        background: #dc3545;
+        border: none;
+        color: #fff;
+        transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+        margin-top: 0.5rem;
+    }
+
+    .btn-login:hover {
+        background: #bb2d3b;
+        box-shadow: 0 4px 12px rgba(220,53,69,0.25);
+        transform: translateY(-1px);
+        color: #fff;
+    }
+
+    .btn-login:active {
+        transform: translateY(0);
+        box-shadow: none;
+    }
+
+    .btn-login .spinner-border {
+        width: 0.9rem;
+        height: 0.9rem;
+        border-width: 2px;
+    }
+
+    .login-divider {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin: 1.25rem 0 0;
+        color: #ced4da;
+        font-size: 0.75rem;
+    }
+
+    .login-divider::before,
+    .login-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: #dee2e6;
+    }
+
+    .pitch-dots {
+        display: flex;
+        justify-content: center;
+        gap: 5px;
+        margin-top: 2rem;
+    }
+
+    .pitch-dots span {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: #dee2e6;
+    }
+
+    .pitch-dots span:nth-child(2) {
+        background: #dc3545;
+    }
+</style>
+
+<div class="login-wrap">
+    <div class="login-card">
+
+        <div class="login-brand">
+            <img src="/static/arnica_favicon.ico" alt="Arnica" width="48" height="48"
+                 style="margin-bottom:0.6rem;border-radius:10px">
+            <div class="brand-name">
+                <span class="red">Arnica</span> <span class="text-dark" style="font-weight:300">F.Q.</span>
+            </div>
+            <div class="brand-sub">Game Management</div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+
+                <h6 class="fw-semibold mb-4" style="font-size:0.85rem;color:#343a40">
+                    <i class="bi bi-person-circle me-1 text-danger"></i> Sign in to continue
+                </h6>
+
+                {% if error %}
+                    <div class="alert alert-danger py-2 px-3 mb-3" style="font-size:0.85rem;border-radius:8px">
+                        <i class="bi bi-exclamation-circle me-1"></i> {{ error }}
+                    </div>
+                {% endif %}
+
+                <form action="/login" method="post" id="login-form">
+
+                    <div class="mb-3">
+                        <label class="form-label" for="username">Username</label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="bi bi-person" style="font-size:0.85rem"></i>
+                            </span>
+                            <input autocomplete="off" autofocus
+                                   class="form-control"
+                                   id="username" name="username"
+                                   placeholder="your username"
+                                   type="text" required>
+                        </div>
+                    </div>
+
+                    <div class="mb-1">
+                        <label class="form-label" for="password">Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="bi bi-lock" style="font-size:0.85rem"></i>
+                            </span>
+                            <input class="form-control"
+                                   id="password" name="password"
+                                   placeholder="••••••••"
+                                   type="password" required>
+                            <button class="btn btn-outline-secondary" type="button"
+                                    id="toggle-pw" title="Show/hide password"
+                                    style="border-radius:0 8px 8px 0;border-color:#dee2e6">
+                                <i class="bi bi-eye" id="pw-eye" style="font-size:0.8rem"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-login mt-3" type="submit" id="login-btn">
+                        <span id="btn-label">
+                            <i class="bi bi-box-arrow-in-right me-1"></i> Log In
+                        </span>
+                        <span id="btn-spinner" style="display:none">
+                            <span class="spinner-border spinner-border-sm me-1"></span> Signing in…
+                        </span>
+                    </button>
+
+                </form>
+
+            </div>
+        </div>
+
+        <div class="pitch-dots">
+            <span></span><span></span><span></span>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // Show/hide password toggle
+    document.getElementById('toggle-pw').addEventListener('click', function() {
+        const pw  = document.getElementById('password');
+        const eye = document.getElementById('pw-eye');
+        const show = pw.type === 'password';
+        pw.type = show ? 'text' : 'password';
+        eye.className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
+        eye.style.fontSize = '0.8rem';
+    });
+
+    // Spinner on submit
+    document.getElementById('login-form').addEventListener('submit', function() {
+        document.getElementById('btn-label').style.display  = 'none';
+        document.getElementById('btn-spinner').style.display = '';
+        document.getElementById('login-btn').disabled = true;
+    });
+</script>
+
+{% endblock %}

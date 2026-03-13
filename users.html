@@ -1,0 +1,99 @@
+{% extends "layout.html" %}
+{% block title %}Locations – Admin{% endblock %}
+{% block main %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="/admin" class="text-muted small text-decoration-none"><i class="bi bi-arrow-left"></i> Admin</a>
+        <h2 class="mb-0 mt-1">Locations</h2>
+    </div>
+</div>
+
+<div class="row g-4">
+
+    <!-- Existing locations -->
+    <div class="col-md-7">
+        <div class="card shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Name</th>
+                            <th class="text-center">Games</th>
+                            <th style="width:180px"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for loc in locations %}
+                            <tr>
+                                <td class="fw-semibold">{{ loc.name }}</td>
+                                <td class="text-center text-muted">{{ loc.game_count }}</td>
+                                <td>
+                                    <div class="d-flex gap-2 justify-content-end">
+
+                                        <!-- Inline edit form -->
+                                        <form action="/admin/locations/{{ loc.id }}/edit"
+                                              method="post"
+                                              class="d-flex gap-1">
+                                            <input class="form-control form-control-sm"
+                                                   name="name"
+                                                   required
+                                                   type="text"
+                                                   value="{{ loc.name }}"
+                                                   style="max-width:120px">
+                                            <button class="btn btn-sm btn-outline-secondary" type="submit">
+                                                <i class="bi bi-check"></i>
+                                            </button>
+                                        </form>
+
+                                        {% if session.get("role") == "admin" %}
+                                            <form action="/admin/locations/{{ loc.id }}/delete"
+                                                  method="post"
+                                                  onsubmit="return confirm('Delete {{ loc.name }}?')">
+                                                <button class="btn btn-sm btn-outline-danger"
+                                                        type="submit"
+                                                        {% if loc.game_count > 0 %}disabled title="In use by {{ loc.game_count }} game(s)"{% endif %}>
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        {% endif %}
+
+                                    </div>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted py-4">No locations yet.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add new location -->
+    <div class="col-md-5">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <i class="bi bi-plus-circle"></i> Add Location
+            </div>
+            <div class="card-body">
+                <form action="/admin/locations/add" method="post">
+                    <div class="d-flex gap-2">
+                        <input autofocus
+                               class="form-control"
+                               name="name"
+                               placeholder="e.g. Campo do Zé"
+                               required
+                               type="text">
+                        <button class="btn btn-danger flex-shrink-0" type="submit">Add</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

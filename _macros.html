@@ -1,0 +1,120 @@
+/* ── Brand ─────────────────────────────────────────── */
+nav .navbar-brand {
+    font-size: xx-large;
+}
+nav .navbar-brand .red    { color: #ea433b; }
+nav .navbar-brand .blue   { color: #537fbe; }
+nav .navbar-brand .yellow { color: #f5b82e; }
+nav .navbar-brand .green  { color: #2e944b; }
+
+/* ── Active nav link highlight ──────────────────────── */
+nav .nav-link.active {
+    font-weight: 600;
+}
+
+/* ── Cards ──────────────────────────────────────────── */
+.card {
+    border-radius: 0.75rem;
+}
+.card-header {
+    font-weight: 600;
+    letter-spacing: 0.03em;
+}
+
+/* ── Event timeline ─────────────────────────────────── */
+.event-timeline {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+.event-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e5e5e5;
+    font-size: 0.9rem;
+}
+.event-row:last-child {
+    border-bottom: none;
+}
+.event-timestamp {
+    font-family: monospace;
+    color: #666;
+    min-width: 65px;
+}
+.event-type-badge {
+    font-size: 0.75rem;
+    min-width: 80px;
+    text-align: center;
+}
+
+/* ── Event type colors ──────────────────────────────── */
+.badge-goal         { background-color: #2e944b; }
+.badge-assist       { background-color: #537fbe; }
+.badge-injury       { background-color: #ea433b; }
+.badge-highlight    { background-color: #f5b82e; color: #000 !important; }
+.badge-foul         { background-color: #f97316; }
+.badge-substitution { background-color: #8b5cf6; }
+.badge-team_change  { background-color: #06b6d4; }
+
+/* ── Leaderboard ────────────────────────────────────── */
+.leaderboard-rank {
+    font-size: 1.2rem;
+    font-weight: 700;
+    min-width: 2rem;
+    color: #aaa;
+}
+.leaderboard-rank.gold   { color: #f5b82e; }
+.leaderboard-rank.silver { color: #9ca3af; }
+.leaderboard-rank.bronze { color: #b45309; }
+
+/* ── Stat boxes ─────────────────────────────────────── */
+.stat-box {
+    text-align: center;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    background: #f8f9fa;
+    border: 1px solid #e5e5e5;
+}
+.stat-box .stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #ea433b;
+}
+.stat-box .stat-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #666;
+}
+
+/* ── Split layout for event logging ─────────────────── */
+.split-left {
+    position: sticky;
+    top: 1rem;
+    height: calc(100vh - 80px);
+}
+.split-right {
+    height: calc(100vh - 80px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+.split-right .event-form {
+    flex-shrink: 0;
+}
+.split-right .event-timeline {
+    flex: 1;
+    overflow-y: auto;
+    max-height: none;
+}
+
+/* ── Timeline filter buttons ─────────────────────────── */
+.btn-xs {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 0.4rem;
+    line-height: 1.4;
+}
+#timeline-filters .btn-xs.active { opacity: 1; }
+#timeline-filters .btn-xs:not(.active) { opacity: 0.6; }

@@ -1,0 +1,127 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import game_header, game_steps, avatar %}
+
+{% block title %}Roster – {{ game.title }}{% endblock %}
+
+{% block main %}
+
+<div class="row justify-content-center">
+    <div class="col-md-7 col-lg-6">
+
+        <!-- Step indicator -->
+        {{ game_header(game) }}
+        {{ game_steps(5, game.id, done=steps_done) }}
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-people-fill"></i> Starting Roster</span>
+                <span class="text-muted small">{{ game.title }} · {{ game.date }}</span>
+            </div>
+            <div class="card-body p-0">
+
+                <!-- Team legend -->
+                <div class="d-flex gap-3 px-3 pt-3 pb-1 flex-wrap">
+                    {% for team in teams %}
+                        <div class="d-flex align-items-center gap-1">
+                            <span style="width:12px;height:12px;border-radius:50%;background:{{ team.color }};border:1px solid rgba(0,0,0,0.15);display:inline-block"></span>
+                            <span class="small text-capitalize fw-semibold">{{ team.color }}</span>
+                        </div>
+                    {% endfor %}
+                    <span class="text-muted small ms-auto">— = bench &nbsp;·&nbsp; <i class="bi bi-shield-fill text-warning"></i> = GK</span>
+                </div>
+
+                <form action="/games/{{ game.id }}/roster" method="post">
+                    <div class="list-group list-group-flush">
+                        {% for player in players %}
+                            <div class="list-group-item py-2">
+                                <div class="d-flex align-items-center gap-3">
+
+                                    <!-- Avatar + name -->
+                                    <div class="d-flex align-items-center gap-2" style="min-width:0;flex:1">
+                                        {{ avatar(player.id, player.name, size=34) }}
+                                        <div style="min-width:0">
+                                            <div class="fw-semibold small text-truncate">{{ player.name }}</div>
+                                            {% if player.nickname %}
+                                                <div class="text-muted" style="font-size:0.7rem">{{ player.nickname }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <!-- Team radio swatches -->
+                                    <div class="d-flex gap-2 align-items-center flex-shrink-0">
+
+                                        <!-- Bench (no team) -->
+                                        <input type="radio" class="btn-check" name="team_{{ player.id }}"
+                                               id="none_{{ player.id }}" value=""
+                                               {% if not player.team_id %}checked{% endif %}>
+                                        <label for="none_{{ player.id }}" class="swatch-label swatch-bench" title="Bench">
+                                            <i class="bi bi-dash" style="font-size:0.65rem;color:#6c757d"></i>
+                                        </label>
+
+                                        {% for team in teams %}
+                                            <input type="radio" class="btn-check" name="team_{{ player.id }}"
+                                                   id="team_{{ team.id }}_{{ player.id }}" value="{{ team.id }}"
+                                                   {% if player.team_id == team.id %}checked{% endif %}>
+                                            <label for="team_{{ team.id }}_{{ player.id }}"
+                                                   class="swatch-label"
+                                                   style="background:{{ team.color }}"
+                                                   title="{{ team.color }}">
+                                            </label>
+                                        {% endfor %}
+
+                                        <!-- GK toggle -->
+                                        <div class="vr mx-1" style="height:24px;opacity:0.2"></div>
+                                        <input type="checkbox" class="btn-check" name="gk_{{ player.id }}"
+                                               id="gk_{{ player.id }}" value="1"
+                                               {% if player.is_goalkeeper %}checked{% endif %}>
+                                        <label for="gk_{{ player.id }}" class="swatch-label swatch-gk" title="Goalkeeper">
+                                            <i class="bi bi-shield-fill" style="font-size:0.65rem"></i>
+                                        </label>
+
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="d-flex gap-2 p-3">
+                        <a href="/games/{{ game.id }}/presences" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Back
+                        </a>
+                        <button class="btn btn-danger flex-grow-1" type="submit">
+                            Next: Log Events <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .swatch-label {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px; height: 28px;
+        border-radius: 50%;
+        border: 3px solid transparent;
+        cursor: pointer;
+        transition: box-shadow 0.1s;
+    }
+    .swatch-bench  { background: #e9ecef; }
+    .swatch-gk     { background: #fff3cd; border-color: #ffc107; color: #856404; }
+    .btn-check:checked + .swatch-label {
+        border-color: #212529;
+        box-shadow: 0 0 0 2px #fff, 0 0 0 4px #212529;
+    }
+    .btn-check:checked + .swatch-gk {
+        border-color: #ffc107;
+        box-shadow: 0 0 0 2px #fff, 0 0 0 4px #ffc107;
+        background: #ffc107;
+        color: #fff;
+    }
+</style>
+
+{% endblock %}

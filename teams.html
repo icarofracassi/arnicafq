@@ -1,0 +1,228 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Database Schema
+{% endblock %}
+
+{% block main %}
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0f; font-family: 'JetBrains Mono', monospace; color: #e0e0f0; min-height: 100vh; overflow-x: auto; }
+  header { text-align: center; padding: 40px 20px 20px; }
+  header h1 { font-family: 'Syne', sans-serif; font-size: 2rem; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase; color: #fff; }
+  header p { font-size: 0.7rem; color: #555; letter-spacing: 0.2em; margin-top: 6px; text-transform: uppercase; }
+  .canvas-wrap { width: 100%; overflow: auto; padding: 20px 20px 60px; }
+  svg { display: block; margin: 0 auto; }
+  .table-header { font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; fill: #0a0a0f; }
+  .col-name { font-size: 11px; fill: #c8c8e8; }
+  .col-type { font-size: 10px; fill: #555577; }
+  .col-pk { font-size: 9px; fill: #ffd700; font-weight: 700; }
+  .col-fk { font-size: 9px; fill: #7eb8f7; font-weight: 700; }
+  .col-odd { fill: #12121e; }
+  .col-even { fill: #0e0e1a; }
+  .fk-line { fill: none; stroke-width: 1.5; stroke-dasharray: 5 3; opacity: 0.45; }
+  .legend text { font-size: 10px; fill: #555; letter-spacing: 0.05em; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Database Schema</h1>
+  <p>Entity Relationship Diagram · SQLite3</p>
+</header>
+<div class="canvas-wrap">
+<svg width="1400" height="1200" viewBox="0 0 1400 1200" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="a1" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#a78bfa" opacity="0.8"/></marker>
+  <marker id="a2" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#67e8f9" opacity="0.8"/></marker>
+  <marker id="a3" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#6ee7b7" opacity="0.8"/></marker>
+  <marker id="a4" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#f9a8d4" opacity="0.8"/></marker>
+  <marker id="a5" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#fca5a5" opacity="0.8"/></marker>
+  <marker id="a6" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#fdba74" opacity="0.8"/></marker>
+  <marker id="a7" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#86efac" opacity="0.8"/></marker>
+  <marker id="a8" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3 z" fill="#fde68a" opacity="0.8"/></marker>
+</defs>
+
+<!-- PEOPLE (top-center) -->
+<g transform="translate(460,40)">
+  <rect width="220" height="32" fill="#0891b2" rx="8"/><rect width="220" height="16" y="16" fill="#0891b2"/>
+  <text x="110" y="21" text-anchor="middle" class="table-header">people</text>
+  <rect y="32" width="220" height="22" class="col-odd"/><text x="10" y="47" class="col-pk">PK</text><text x="34" y="47" class="col-name">id</text><text x="165" y="47" class="col-type">INTEGER</text>
+  <rect y="54" width="220" height="22" class="col-even"/><text x="10" y="69" class="col-name">name</text><text x="165" y="69" class="col-type">TEXT</text>
+  <rect y="76" width="220" height="22" class="col-odd"/><text x="10" y="91" class="col-name">nickname</text><text x="165" y="91" class="col-type">TEXT</text>
+  <rect y="98" width="220" height="22" class="col-even"/><text x="10" y="113" class="col-name">phone_number</text><text x="165" y="113" class="col-type">TEXT</text>
+  <rect y="120" width="220" height="22" class="col-odd"/><text x="10" y="135" class="col-name">created_at</text><text x="165" y="135" class="col-type">TEXT</text>
+  <rect y="142" width="220" height="22" class="col-even"/><text x="10" y="157" class="col-name">updated_at</text><text x="165" y="157" class="col-type">TEXT</text>
+  <rect y="164" width="220" height="6" fill="#1a1a2e"/><rect y="168" width="220" height="4" fill="#1a1a2e" rx="4"/>
+</g>
+
+<!-- USERS (top-left) -->
+<g transform="translate(30,40)">
+  <rect width="220" height="32" fill="#7c3aed" rx="8"/><rect width="220" height="16" y="16" fill="#7c3aed"/>
+  <text x="110" y="21" text-anchor="middle" class="table-header">users</text>
+  <rect y="32" width="220" height="22" class="col-odd"/><text x="10" y="47" class="col-pk">PK</text><text x="34" y="47" class="col-name">id</text><text x="165" y="47" class="col-type">INTEGER</text>
+  <rect y="54" width="220" height="22" class="col-even"/><text x="10" y="69" class="col-name">username</text><text x="165" y="69" class="col-type">TEXT</text>
+  <rect y="76" width="220" height="22" class="col-odd"/><text x="10" y="91" class="col-name">email</text><text x="165" y="91" class="col-type">TEXT</text>
+  <rect y="98" width="220" height="22" class="col-even"/><text x="10" y="113" class="col-name">hash</text><text x="165" y="113" class="col-type">TEXT</text>
+  <rect y="120" width="220" height="22" class="col-odd"/><text x="10" y="135" class="col-name">role</text><text x="165" y="135" class="col-type">TEXT</text>
+  <rect y="142" width="220" height="22" class="col-even"/><text x="10" y="157" class="col-fk">FK</text><text x="34" y="157" class="col-name">person_id</text><text x="165" y="157" class="col-type">INTEGER?</text>
+  <rect y="164" width="220" height="22" class="col-odd"/><text x="10" y="179" class="col-name">created_at</text><text x="165" y="179" class="col-type">TEXT</text>
+  <rect y="186" width="220" height="22" class="col-even"/><text x="10" y="201" class="col-name">updated_at</text><text x="165" y="201" class="col-type">TEXT</text>
+  <rect y="208" width="220" height="6" fill="#1a1a2e"/><rect y="212" width="220" height="4" fill="#1a1a2e" rx="4"/>
+</g>
+
+<!-- LOCATIONS (top-right) -->
+<g transform="translate(980,40)">
+  <rect width="190" height="32" fill="#0f766e" rx="8"/><rect width="190" height="16" y="16" fill="#0f766e"/>
+  <text x="95" y="21" text-anchor="middle" class="table-header">locations</text>
+  <rect y="32" width="190" height="22" class="col-odd"/><text x="10" y="47" class="col-pk">PK</text><text x="34" y="47" class="col-name">id</text><text x="140" y="47" class="col-type">INTEGER</text>
+  <rect y="54" width="190" height="22" class="col-even"/><text x="10" y="69" class="col-name">name</text><text x="140" y="69" class="col-type">TEXT</text>
+  <rect y="76" width="190" height="6" fill="#1a1a2e"/><rect y="80" width="190" height="4" fill="#1a1a2e" rx="4"/>
+</g>
+
+<!-- GAMES -->
+<g transform="translate(750,40)">
+  <rect width="210" height="32" fill="#b45309" rx="8"/><rect width="210" height="16" y="16" fill="#b45309"/>
+  <text x="105" y="21" text-anchor="middle" class="table-header">games</text>
+  <rect y="32" width="210" height="22" class="col-odd"/><text x="10" y="47" class="col-pk">PK</text><text x="34" y="47" class="col-name">id</text><text x="155" y="47" class="col-type">INTEGER</text>
+  <rect y="54" width="210" height="22" class="col-even"/><text x="10" y="69" class="col-name">title</text><text x="155" y="69" class="col-type">TEXT</text>
+  <rect y="76" width="210" height="22" class="col-odd"/><text x="10" y="91" class="col-name">date</text><text x="155" y="91" class="col-type">DATE</text>
+  <rect y="98" width="210" height="22" class="col-even"/><text x="10" y="113" class="col-name">youtube_url</text><text x="155" y="113" class="col-type">TEXT</text>
+  <rect y="120" width="210" height="22" class="col-odd"/><text x="10" y="135" class="col-fk">FK</text><text x="34" y="135" class="col-name">location_id</text><text x="155" y="135" class="col-type">INTEGER</text>
+  <rect y="142" width="210" height="22" class="col-even"/><text x="10" y="157" class="col-name">video_start</text><text x="155" y="157" class="col-type">TEXT</text>
+  <rect y="164" width="210" height="22" class="col-odd"/><text x="10" y="179" class="col-name">video_end</text><text x="155" y="179" class="col-type">TEXT</text>
+  <rect y="186" width="210" height="6" fill="#1a1a2e"/><rect y="190" width="210" height="4" fill="#1a1a2e" rx="4"/>
+</g>
+
+<!-- TEAMS -->
+<g transform="translate(750,270)">
+  <rect width="210" height="32" fill="#4f46e5" rx="8"/><rect width="210" height="16" y="16" fill="#4f46e5"/>
+  <text x="105" y="21" text-anchor="middle" class="table-header">teams</text>
+  <rect y="32" width="210" height="22" class="col-odd"/><text x="10" y="47" class="col-pk">PK</text><text x="34" y="47" class="col-name">id</text><text x="155" y="47" class="col-type">INTEGER</text>
+  <rect y="54" width="210" height="22" class="col-even"/><text x="10" y="69" class="col-fk">FK</text><text x="34" y="69" class="col-name">game_id</text><text x="155" y="69" class="col-type">INTEGER</text>
+  <rect y="76" width="210" height="22" class="col-odd"/><text x="10" y="91" class="col-name">color</text><text x="155" y="91" class="col-type">TEXT</text>
+  <rect y="98" width="210" height="6" fill="#1a1a2e"/><rect y="102" width="210" height="4" fill="#1a1a2e" rx="4"/>
+</g>
+
+<!-- SEGMENTS -->
+<g transform="translate(980,270)">
+  <rect width="210" height="32" fill="#7e22ce" rx="8"/><rect width="210" height="16" y="16" fill="#7e22ce"/>
+  <text x="105" y="21" text-anchor="middle" class="table-header">segments</text>
+  <rect y="32" width="210" height="22" class="col-odd"/><text x="10" y="47" class="col-pk">PK</text><text x="34" y="47" class="col-name">id</text><text x="155" y="47" class="col-type">INTEGER</text>
+  <rect y="54" width="210" height="22" class="col-even"/><text x="10" y="69" class="col-fk">FK</text><text x="34" y="69" class="col-name">game_id</text><text x="155" y="69" class="col-type">INTEGER</text>
+  <rect y="76" width="210" height="22" class="col-odd"/><text x="10" y="91" class="col-fk">FK</text><text x="34" y="91" class="col-name">team_a_id</text><text x="155" y="91" class="col-type">INTEGER</text>
+  <rect y="98" width="210" height="22" class="col-even"/><text x="10" y="113" class="col-fk">FK</text><text x="34" y="113" class="col-name">team_b_id</text><text x="155" y="113" class="col-type">INTEGER</text>
+  <rect y="120" width="210" height="22" class="col-odd"/><text x="10" y="135" class="col-name">started_at</text><text x="155" y="135" class="col-type">TEXT</text>
+  <rect y="142" width="210" height="22" class="col-even"/><text x="10" y="157" class="col-name">ended_at</text><text x="155" y="157" class="col-type">TEXT?</text>
+  <rect y="164" width="210" height="6" fill="#1a1a2e"/><rect y="168" width="210" height="4" fill="#1a1a2e" rx="4"/>
+</g>
+
+<!-- WHATSAPP_LIST -->
+<g transform="translate(30,480)">
+  <rect width="220" height="32" fill="#16a34a" rx="8"/><rect width="220" height="16" y="16" fill="#16a34a"/>
+  <text x="110" y="21" text-anchor="middle" class="table-header">whatsapp_list</text>
+  <rect y="32" width="220" height="22" class="col-odd"/><text x="10" y="47" class="col-pk">PK</text><text x="34" y="47" class="col-name">id</text><text x="165" y="47" class="col-type">INTEGER</text>
+  <rect y="54" width="220" height="22" class="col-even"/><text x="10" y="69" class="col-fk">FK</text><text x="34" y="69" class="col-name">game_id</text><text x="165" y="69" class="col-type">INTEGER</text>
+  <rect y="76" width="220" height="22" class="col-odd"/><text x="10" y="91" class="col-fk">FK</text><text x="34" y="91" class="col-name">person_id</text><text x="165" y="91" class="col-type">INTEGER</text>
+  <rect y="98" width="220" height="22" class="col-even"/><text x="10" y="113" class="col-name">timestamp</text><text x="165" y="113" class="col-type">TEXT</text>
+  <rect y="120" width="220" height="6" fill="#1a1a2e"/><rect y="124" width="220" height="4" fill="#1a1a2e" rx="4"/>
+</g>
+
+<!-- PRESENCES -->
+<g transform="translate(270,480)">
+  <rect width="220" height="32" fill="#be185d" rx="8"/><rect width="220" height="16" y="16" fill="#be185d"/>
+  <text x="110" y="21" text-anchor="middle" class="table-header">presences</text>
+  <rect y="32" width="220" height="22" class="col-odd"/><text x="10" y="47" class="col-pk">PK</text><text x="34" y="47" class="col-name">id</text><text x="165" y="47" class="col-type">INTEGER</text>
+  <rect y="54" width="220" height="22" class="col-even"/><text x="10" y="69" class="col-fk">FK</text><text x="34" y="69" class="col-name">game_id</text><text x="165" y="69" class="col-type">INTEGER</text>
+  <rect y="76" width="220" height="22" class="col-odd"/><text x="10" y="91" class="col-fk">FK</text><text x="34" y="91" class="col-name">person_id</text><text x="165" y="91" class="col-type">INTEGER</text>
+  <rect y="98" width="220" height="22" class="col-even"/><text x="10" y="113" class="col-fk">FK</text><text x="34" y="113" class="col-name">team_id</text><text x="165" y="113" class="col-type">INTEGER?</text>
+  <rect y="120" width="220" height="22" class="col-odd"/><text x="10" y="135" class="col-name">is_goalkeeper</text><text x="165" y="135" class="col-type">INTEGER</text>
+  <rect y="142" width="220" height="6" fill="#1a1a2e"/><rect y="146" width="220" height="4" fill="#1a1a2e" rx="4"/>
+</g>
+
+<!-- EVENTS -->
+<g transform="translate(510,480)">
+  <rect width="220" height="32" fill="#dc2626" rx="8"/><rect width="220" height="16" y="16" fill="#dc2626"/>
+  <text x="110" y="21" text-anchor="middle" class="table-header">events</text>
+  <rect y="32" width="220" height="22" class="col-odd"/><text x="10" y="47" class="col-pk">PK</text><text x="34" y="47" class="col-name">id</text><text x="165" y="47" class="col-type">INTEGER</text>
+  <rect y="54" width="220" height="22" class="col-even"/><text x="10" y="69" class="col-fk">FK</text><text x="34" y="69" class="col-name">game_id</text><text x="165" y="69" class="col-type">INTEGER</text>
+  <rect y="76" width="220" height="22" class="col-odd"/><text x="10" y="91" class="col-fk">FK</text><text x="34" y="91" class="col-name">person_id</text><text x="165" y="91" class="col-type">INTEGER?</text>
+  <rect y="98" width="220" height="22" class="col-even"/><text x="10" y="113" class="col-name">type</text><text x="165" y="113" class="col-type">TEXT</text>
+  <rect y="120" width="220" height="22" class="col-odd"/><text x="10" y="135" class="col-name">timestamp</text><text x="165" y="135" class="col-type">TEXT</text>
+  <rect y="142" width="220" height="22" class="col-even"/><text x="10" y="157" class="col-name">duration</text><text x="165" y="157" class="col-type">INTEGER</text>
+  <rect y="164" width="220" height="22" class="col-odd"/><text x="10" y="179" class="col-name">notes</text><text x="165" y="179" class="col-type">TEXT</text>
+  <rect y="186" width="220" height="6" fill="#1a1a2e"/><rect y="190" width="220" height="4" fill="#1a1a2e" rx="4"/>
+</g>
+
+<!-- EVENT_LINKS -->
+<g transform="translate(270,760)">
+  <rect width="220" height="32" fill="#92400e" rx="8"/><rect width="220" height="16" y="16" fill="#92400e"/>
+  <text x="110" y="21" text-anchor="middle" class="table-header">event_links</text>
+  <rect y="32" width="220" height="22" class="col-odd"/><text x="10" y="47" class="col-pk">PK</text><text x="34" y="47" class="col-name">id</text><text x="165" y="47" class="col-type">INTEGER</text>
+  <rect y="54" width="220" height="22" class="col-even"/><text x="10" y="69" class="col-fk">FK</text><text x="34" y="69" class="col-name">event_id</text><text x="165" y="69" class="col-type">INTEGER</text>
+  <rect y="76" width="220" height="22" class="col-odd"/><text x="10" y="91" class="col-fk">FK</text><text x="34" y="91" class="col-name">linked_person_id</text><text x="165" y="91" class="col-type">INTEGER</text>
+  <rect y="98" width="220" height="22" class="col-even"/><text x="10" y="113" class="col-name">link_type</text><text x="165" y="113" class="col-type">TEXT</text>
+  <rect y="120" width="220" height="6" fill="#1a1a2e"/><rect y="124" width="220" height="4" fill="#1a1a2e" rx="4"/>
+</g>
+
+<!-- TEAM_CHANGE_DETAILS -->
+<g transform="translate(510,760)">
+  <rect width="240" height="32" fill="#065f46" rx="8"/><rect width="240" height="16" y="16" fill="#065f46"/>
+  <text x="120" y="21" text-anchor="middle" class="table-header">team_change_details</text>
+  <rect y="32" width="240" height="22" class="col-odd"/><text x="10" y="47" class="col-pk">PK</text><text x="34" y="47" class="col-name">id</text><text x="185" y="47" class="col-type">INTEGER</text>
+  <rect y="54" width="240" height="22" class="col-even"/><text x="10" y="69" class="col-fk">FK</text><text x="34" y="69" class="col-name">event_id</text><text x="185" y="69" class="col-type">INTEGER</text>
+  <rect y="76" width="240" height="22" class="col-odd"/><text x="10" y="91" class="col-fk">FK</text><text x="34" y="91" class="col-name">leaving_team_id</text><text x="185" y="91" class="col-type">INTEGER</text>
+  <rect y="98" width="240" height="22" class="col-even"/><text x="10" y="113" class="col-fk">FK</text><text x="34" y="113" class="col-name">entering_team_id</text><text x="185" y="113" class="col-type">INTEGER</text>
+  <rect y="120" width="240" height="6" fill="#1a1a2e"/><rect y="124" width="240" height="4" fill="#1a1a2e" rx="4"/>
+</g>
+
+<!-- FK LINES -->
+<!-- users → people -->
+<path d="M250,197 Q350,175 460,130" class="fk-line" stroke="#a78bfa" marker-end="url(#a1)"/>
+<!-- games → locations -->
+<path d="M960,135 Q970,80 980,80" class="fk-line" stroke="#67e8f9" marker-end="url(#a2)"/>
+<!-- teams → games -->
+<path d="M855,270 Q855,230 855,194" class="fk-line" stroke="#86efac" marker-end="url(#a7)"/>
+<!-- segments → games -->
+<path d="M1050,270 Q980,180 960,194" class="fk-line" stroke="#86efac" marker-end="url(#a7)"/>
+<!-- segments → teams (a) -->
+<path d="M980,340 Q960,330 960,372" class="fk-line" stroke="#fde68a" marker-end="url(#a8)"/>
+<!-- segments → teams (b) -->
+<path d="M980,360 Q940,360 960,372" class="fk-line" stroke="#fde68a" marker-end="url(#a8)"/>
+<!-- whatsapp_list → games -->
+<path d="M140,549 Q140,300 750,120" class="fk-line" stroke="#6ee7b7" marker-end="url(#a3)"/>
+<!-- whatsapp_list → people -->
+<path d="M250,571 Q350,440 460,172" class="fk-line" stroke="#6ee7b7" marker-end="url(#a3)"/>
+<!-- presences → games -->
+<path d="M490,549 Q600,350 750,140" class="fk-line" stroke="#f9a8d4" marker-end="url(#a4)"/>
+<!-- presences → people -->
+<path d="M380,571 Q420,400 570,212" class="fk-line" stroke="#f9a8d4" marker-end="url(#a4)"/>
+<!-- presences → teams -->
+<path d="M490,593 Q640,480 750,340" class="fk-line" stroke="#f9a8d4" marker-end="url(#a4)"/>
+<!-- events → games -->
+<path d="M730,549 Q740,350 855,234" class="fk-line" stroke="#fca5a5" marker-end="url(#a5)"/>
+<!-- events → people -->
+<path d="M620,571 Q590,400 570,212" class="fk-line" stroke="#fca5a5" marker-end="url(#a5)"/>
+<!-- event_links → events -->
+<path d="M380,829 Q440,720 620,670" class="fk-line" stroke="#fdba74" marker-end="url(#a6)"/>
+<!-- event_links → people -->
+<path d="M380,851 Q200,700 570,212" class="fk-line" stroke="#fdba74" marker-end="url(#a6)"/>
+<!-- team_change_details → events -->
+<path d="M630,829 Q630,720 620,670" class="fk-line" stroke="#86efac" marker-end="url(#a7)"/>
+<!-- team_change_details → teams (leaving) -->
+<path d="M750,851 Q800,700 855,372" class="fk-line" stroke="#86efac" marker-end="url(#a7)"/>
+<!-- team_change_details → teams (entering) -->
+<path d="M750,871 Q820,700 855,372" class="fk-line" stroke="#86efac" marker-end="url(#a7)"/>
+
+<!-- LEGEND -->
+<g transform="translate(30,1150)" class="legend">
+  <rect x="0" y="-8" width="10" height="10" fill="#ffd700"/><text x="15" y="0">PK — Primary Key</text>
+  <rect x="160" y="-8" width="10" height="10" fill="#7eb8f7"/><text x="175" y="0">FK — Foreign Key</text>
+  <text x="330" y="0">? — nullable</text>
+  <line x1="420" y1="-3" x2="450" y2="-3" stroke="#aaa" stroke-width="1.5" stroke-dasharray="4 2"/>
+  <text x="455" y="0">Relationship (→ CASCADE / RESTRICT / SET NULL)</text>
+</g>
+
+</svg>
+</div>
+{% endblock %}
