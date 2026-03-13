@@ -1,0 +1,48 @@
+{% extends "layout.html" %}
+{% block title %}Admin{% endblock %}
+{% block main %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="bi bi-gear"></i> Admin</h2>
+</div>
+
+<div class="row g-3">
+    <div class="col-sm-6 col-md-3">
+        <a href="/admin/people" class="text-decoration-none">
+            <div class="card shadow-sm text-center p-4">
+                <div style="font-size:2rem">👤</div>
+                <div class="fw-bold fs-4 mt-1">{{ people_count }}</div>
+                <div class="text-muted small">Players</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-6 col-md-3">
+        <a href="/admin/games" class="text-decoration-none">
+            <div class="card shadow-sm text-center p-4">
+                <div style="font-size:2rem">⚽</div>
+                <div class="fw-bold fs-4 mt-1">{{ games_count }}</div>
+                <div class="text-muted small">Games</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-6 col-md-3">
+        <a href="/admin/locations" class="text-decoration-none">
+            <div class="card shadow-sm text-center p-4">
+                <div style="font-size:2rem">📍</div>
+                <div class="fw-bold fs-4 mt-1">{{ locations_count }}</div>
+                <div class="text-muted small">Locations</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-sm-6 col-md-3">
+        <a href="/admin/users" class="text-decoration-none">
+            <div class="card shadow-sm text-center p-4">
+                <div style="font-size:2rem">🔑</div>
+                <div class="fw-bold fs-4 mt-1">{{ users_count }}</div>
+                <div class="text-muted small">Users</div>
+            </div>
+        </a>
+    </div>
+</div>
+
+{% endblock %}

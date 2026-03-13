@@ -1,0 +1,132 @@
+{% extends "layout.html" %}
+{% from "_macros.html" import avatar %}
+{% block title %}{{ 'Edit' if person else 'Add' }} Player – Admin{% endblock %}
+{% block main %}
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <a href="/admin/people" class="text-muted small text-decoration-none">
+            <i class="bi bi-arrow-left"></i> Players
+        </a>
+        <h2 class="mt-1 mb-4">{{ 'Edit' if person else 'Add' }} Player</h2>
+
+        <!-- Player info form -->
+        <div class="card shadow-sm mb-3">
+            <div class="card-body">
+                <form action="{{ '/admin/people/' + person.id|string + '/edit' if person else '/admin/people/add' }}"
+                      method="post">
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="name">Full Name</label>
+                        <input autofocus class="form-control" id="name" name="name" required type="text"
+                               value="{{ person.name if person else '' }}">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="nickname">
+                            Nickname <span class="text-muted fw-normal">(optional)</span>
+                        </label>
+                        <input class="form-control" id="nickname" name="nickname" type="text"
+                               value="{{ person.nickname if person and person.nickname else '' }}">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="phone_number">
+                            Phone <span class="text-muted fw-normal">(optional)</span>
+                        </label>
+                        <input class="form-control" id="phone_number" name="phone_number" type="text"
+                               value="{{ person.phone_number if person and person.phone_number else '' }}">
+                    </div>
+
+                    <hr class="my-3">
+
+                    <!-- Flags -->
+                    <div class="mb-3 d-flex flex-column gap-2">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox"
+                                   id="is_in_group_chat" name="is_in_group_chat"
+                                   {% if person and person.is_in_group_chat %}checked{% endif %}>
+                            <label class="form-check-label" for="is_in_group_chat">
+                                <i class="bi bi-whatsapp text-success"></i>
+                                In WhatsApp group chat
+                            </label>
+                        </div>
+
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox"
+                                   id="is_guest" name="is_guest"
+                                   {% if person and person.is_guest %}checked{% endif %}
+                                   onchange="toggleGuestOf(this)">
+                            <label class="form-check-label" for="is_guest">
+                                <i class="bi bi-person-badge text-secondary"></i>
+                                Guest player
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="guestOfWrap" class="mb-4"
+                         {% if not person or not person.is_guest %}style="display:none"{% endif %}>
+                        <label class="form-label fw-semibold" for="guest_of">Guest of</label>
+                        <select class="form-select" id="guest_of" name="guest_of">
+                            <option value="">— select player —</option>
+                            {% if all_people %}
+                                {% for p in all_people %}
+                                    <option value="{{ p.id }}"
+                                        {% if person and p.id == person.guest_of %}selected{% endif %}>
+                                        {{ p.nickname or p.name }}
+                                    </option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <a href="/admin/people" class="btn btn-outline-secondary">Cancel</a>
+                        <button class="btn btn-danger flex-grow-1" type="submit">
+                            {{ 'Save Changes' if person else 'Add Player' }}
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+
+        <!-- Photo upload (only for existing players) -->
+        {% if person %}
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-semibold">
+                <i class="bi bi-camera"></i> Photo
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-4 mb-3">
+                    {{ avatar(person.id, person.name, size=72) }}
+                    <div class="text-muted small">
+                        JPG, PNG or WEBP · Max 5MB<br>
+                        Will be cropped to a square.
+                    </div>
+                </div>
+                <form action="/admin/people/{{ person.id }}/photo"
+                      method="post"
+                      enctype="multipart/form-data">
+                    <div class="d-flex gap-2">
+                        <input class="form-control form-control-sm" name="photo" type="file"
+                               accept=".jpg,.jpeg,.png,.webp">
+                        <button class="btn btn-sm btn-outline-danger flex-shrink-0" type="submit">
+                            Upload
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+
+<script>
+    function toggleGuestOf(cb) {
+        document.getElementById('guestOfWrap').style.display = cb.checked ? '' : 'none';
+    }
+</script>
+
+{% endblock %}
