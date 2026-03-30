@@ -25,10 +25,10 @@
                             <!-- Date -->
                             <div class="text-center" style="min-width:60px">
                                 <div class="fw-bold text-danger" style="font-size:1.4rem; line-height:1">
-                                    {{ game.date[8:10] }}
+                                    {{ game.date.day if game.date else '??' }}
                                 </div>
                                 <div class="text-muted" style="font-size:0.75rem; text-transform:uppercase">
-                                    {{ game.date[5:7] }}/{{ game.date[0:4] }}
+                                    {{ game.date.strftime('%m/%Y') if game.date else '' }}
                                 </div>
                             </div>
 

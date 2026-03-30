@@ -702,7 +702,7 @@ def game(game_id):
         {"game_id": game_id}
     )
     game_start_event = game_start_event[0] if game_start_event else None
-
+    
     return render_template("game.html",
         game=game,
         events=events,
