@@ -1,10 +1,8 @@
-Flask
-Flask-Session
+flask
+flask-session
 flask-sqlalchemy
-pytz
-requests
-gunicorn
 psycopg2-binary
-flask-sqlalchemy
-Pillow
+gunicorn
+supabase
+pillow
 python-dotenv

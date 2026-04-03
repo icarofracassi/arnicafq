@@ -108,24 +108,39 @@
         color: #fff;
     }
 
-    .btn-login:active {
-        transform: translateY(0);
-        box-shadow: none;
+    /* Styles for the new Register button */
+    .btn-register {
+        width: 100%;
+        padding: 0.65rem;
+        font-weight: 600;
+        font-size: 0.9rem;
+        letter-spacing: 0.04em;
+        border-radius: 8px;
+        background: transparent;
+        border: 1px solid #dee2e6;
+        color: #495057;
+        transition: all 0.15s;
+        display: block;
+        text-align: center;
+        text-decoration: none;
     }
 
-    .btn-login .spinner-border {
-        width: 0.9rem;
-        height: 0.9rem;
-        border-width: 2px;
+    .btn-register:hover {
+        background: #f8f9fa;
+        border-color: #ced4da;
+        color: #212529;
     }
 
     .login-divider {
         display: flex;
         align-items: center;
         gap: 0.75rem;
-        margin: 1.25rem 0 0;
-        color: #ced4da;
-        font-size: 0.75rem;
+        margin: 1.25rem 0;
+        color: #adb5bd;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
 
     .login-divider::before,
@@ -133,7 +148,7 @@
         content: '';
         flex: 1;
         height: 1px;
-        background: #dee2e6;
+        background: #eee;
     }
 
     .pitch-dots {
@@ -224,6 +239,12 @@
                     </button>
 
                 </form>
+
+                <div class="login-divider">or</div>
+                
+                <a href="/userregister" class="btn-register">
+                    Create new account
+                </a>
 
             </div>
         </div>
