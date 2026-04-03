@@ -38,9 +38,10 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 db = SQLAlchemy(app)
 
 # Configure session to use SQLAlchemy
-app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "sqlalchemy"
+app.config["SESSION_PERMANENT"] = True
 app.config["SESSION_SQLALCHEMY"] = db
+app.config["SESSION_SQLALCHEMY_TABLE"] = "sessions"
 Session(app)
 
 UPLOAD_FOLDER = os.path.join("static", "uploads", "players")
