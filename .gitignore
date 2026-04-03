@@ -9,3 +9,5 @@ node_modules/
 flask_session/
 static/uploads/players/*
 !static/uploads/players/.gitkeep
+package-lock.json
+package.json

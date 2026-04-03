@@ -1,5 +1,7 @@
 import os
 import re
+import io
+from supabase import create_client
 from itertools import groupby
 from collections import OrderedDict, defaultdict
 
@@ -12,6 +14,10 @@ from PIL import Image
 from dotenv import load_dotenv
 
 from helpers import apology, login_required, role_required, dateformat
+
+supabase_url = os.environ.get("SUPABASE_URL")
+supabase_key = os.environ.get("SUPABASE_ANON_KEY")
+supabase = create_client(supabase_url, supabase_key)
 
 load_dotenv()
 
@@ -79,41 +85,43 @@ def execute(sql, params=None):
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
-
-def photo_path(person_id):
-    """Return the static file path for a player photo, or None if not found."""
-    for ext in ["jpg", "png", "webp"]:
-        path = os.path.join(UPLOAD_FOLDER, f"{person_id}.{ext}")
-        if os.path.exists(path):
-            return f"/static/uploads/players/{person_id}.{ext}"
-    return None
-
-
 def save_photo(person_id, file):
-    """Save and crop an uploaded photo to a square. Returns the URL path."""
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-    for ext in ["jpg", "png", "webp"]:
-        old = os.path.join(UPLOAD_FOLDER, f"{person_id}.{ext}")
-        if os.path.exists(old):
-            os.remove(old)
-
-    dest = os.path.join(UPLOAD_FOLDER, f"{person_id}.jpg")
+    """Save and crop photo, then upload to Supabase Storage."""
     img = Image.open(file)
-
     if img.mode != "RGB":
         img = img.convert("RGB")
 
+    # Crop and Resize (Keep your existing logic)
     w, h = img.size
     side = min(w, h)
     left = (w - side) // 2
-    top  = (h - side) // 2
-    img  = img.crop((left, top, left + side, top + side))
-    img  = img.resize(PHOTO_SIZE, Image.LANCZOS)
-    img.save(dest, "JPEG", quality=85)
+    top = (h - side) // 2
+    img = img.crop((left, top, left + side, top + side))
+    img = img.resize((256, 256), Image.LANCZOS)
 
-    return f"/static/uploads/players/{person_id}.jpg"
+    # Convert image to bytes
+    img_byte_arr = io.BytesIO()
+    img.save(img_byte_arr, format='JPEG', quality=85)
+    img_bytes = img_byte_arr.getvalue()
 
+    # Upload to Supabase 'players' bucket
+    # 'upsert=True' allows overwriting if the player updates their photo
+    path = f"{person_id}.jpg"
+    supabase.storage.from_("players").upload(
+        path=path, 
+        file=img_bytes, 
+        file_options={"content-type": "image/jpeg", "upsert": "true"}
+    )
+
+    # Return the new public URL
+    return supabase.storage.from_("players").get_public_url(path)
+
+def photo_url_helper(person_id):
+    """Return the Supabase public URL for a player photo."""
+    if not person_id:
+        return None
+    # We assume every player photo is named {id}.jpg
+    return supabase.storage.from_("players").get_public_url(f"{person_id}.jpg")
 
 # ── Time helpers ───────────────────────────────────────────────────────────────
 def _secs(col, fallback_col="g.video_end", hard_default="01:30:00"):
@@ -348,10 +356,7 @@ def get_roster_timeline(game_id):
 
 @app.template_global()
 def photo_url(person_id):
-    """Return the URL for a player's photo, or None."""
-    if not person_id:
-        return None
-    return photo_path(person_id)
+    return photo_url_helper(person_id)
 
 
 @app.after_request
