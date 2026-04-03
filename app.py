@@ -118,11 +118,28 @@ def save_photo(person_id, file):
     return supabase.storage.from_("players").get_public_url(path)
 
 def photo_url_helper(person_id):
-    """Return the Supabase public URL for a player photo."""
+    """Return the Supabase public URL only if the file exists."""
     if not person_id:
         return None
-    # We assume every player photo is named {id}.jpg
-    return supabase.storage.from_("players").get_public_url(f"{person_id}.jpg")
+    
+    filename = f"{person_id}.jpg"
+    
+    try:
+        # Use list() with the folder path. 
+        # Since our files are in the root of the 'players' bucket, path is empty string.
+        res = supabase.storage.from_("players").list(path="")
+        
+        # Check if any file in the bucket matches our filename
+        exists = any(item['name'] == filename for item in res)
+        
+        if exists:
+            return supabase.storage.from_("players").get_public_url(filename)
+    except Exception as e:
+        # If there's an API error, we log it and fallback to initials
+        print(f"Supabase Storage Error: {e}")
+        return None
+    
+    return None
 
 # ── Time helpers ───────────────────────────────────────────────────────────────
 def _secs(col, fallback_col="g.video_end", hard_default="01:30:00"):
