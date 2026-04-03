@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 from helpers import apology, login_required, role_required, dateformat
 
 supabase_url = os.environ.get("SUPABASE_URL")
-supabase_key = os.environ.get("SUPABASE_ANON_KEY")
+supabase_key = os.environ.get("SUPABASE_SERVICE_KEY")
 supabase = create_client(supabase_url, supabase_key)
 
 load_dotenv()
@@ -87,6 +87,9 @@ def allowed_file(filename):
 
 def save_photo(person_id, file):
     """Save and crop photo, then upload to Supabase Storage."""
+    safe_id = int(person_id) 
+    path = f"{safe_id}.jpg"
+
     img = Image.open(file)
     if img.mode != "RGB":
         img = img.convert("RGB")
@@ -106,7 +109,6 @@ def save_photo(person_id, file):
 
     # Upload to Supabase 'players' bucket
     # 'upsert=True' allows overwriting if the player updates their photo
-    path = f"{person_id}.jpg"
     supabase.storage.from_("players").upload(
         path=path, 
         file=img_bytes, 
