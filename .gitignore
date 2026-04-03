@@ -4,3 +4,20 @@
 !.dev.vars.example
 .env*
 !.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+node_modules/
+.env
+.supabase/
+
+# Node / Supabase
+node_modules/
+.supabase/
+
+# Flask / Local
+flask_session/
+static/uploads/players/*
+!static/uploads/players/.gitkeep
+
