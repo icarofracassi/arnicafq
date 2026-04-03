@@ -4,6 +4,466 @@
 
 {% block main %}
 
+{% if not session.get("user_id") %}
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- PUBLIC LANDING — not logged in                         -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500&display=swap');
+
+    .hero {
+        background: #111;
+        border-radius: 16px;
+        padding: 3.5rem 2rem 3rem;
+        margin-bottom: 2.5rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .hero::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(ellipse at 80% 40%, rgba(220,53,69,0.18) 0%, transparent 60%),
+            radial-gradient(ellipse at 5%  90%, rgba(220,53,69,0.07) 0%, transparent 50%);
+        pointer-events: none;
+    }
+    .hero::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image: repeating-linear-gradient(
+            90deg, transparent, transparent 59px,
+            rgba(255,255,255,0.025) 59px, rgba(255,255,255,0.025) 60px
+        );
+        pointer-events: none;
+    }
+    .hero-inner { position: relative; z-index: 1; }
+
+    .hero-eyebrow {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #dc3545;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .hero-eyebrow::before {
+        content: '';
+        display: inline-block;
+        width: 20px;
+        height: 2px;
+        background: #dc3545;
+        flex-shrink: 0;
+    }
+    .hero-title {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: clamp(2.8rem, 9vw, 5rem);
+        font-weight: 900;
+        line-height: 0.92;
+        color: #fff;
+        text-transform: uppercase;
+        letter-spacing: -0.01em;
+        margin-bottom: 1.1rem;
+    }
+    .hero-title .accent { color: #dc3545; }
+    .hero-sub {
+        font-family: 'Barlow', sans-serif;
+        font-size: 0.95rem;
+        color: #9ca3af;
+        max-width: 380px;
+        line-height: 1.65;
+        margin-bottom: 1.75rem;
+    }
+    .hero-cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #dc3545;
+        color: #fff;
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 0.95rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 0.65rem 1.5rem;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+    }
+    .hero-cta:hover {
+        background: #bb2d3b;
+        color: #fff;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(220,53,69,0.3);
+    }
+    .hero-chip {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 12px;
+        padding: 0.85rem 1.25rem;
+        min-width: 76px;
+    }
+    .hero-chip-num {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 1.9rem;
+        font-weight: 900;
+        color: #fff;
+        line-height: 1;
+    }
+    .hero-chip-label {
+        font-size: 0.63rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #6b7280;
+        margin-top: 3px;
+    }
+
+    /* Section titles */
+    .pub-section-title {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 1rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: #343a40;
+        margin-bottom: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .pub-section-title::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: #e9ecef;
+    }
+
+    /* Leaderboard rows */
+    .lb-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0.55rem 6px;
+        border-bottom: 1px solid #f1f3f5;
+        text-decoration: none;
+        color: inherit;
+        border-radius: 6px;
+        transition: background 0.1s;
+    }
+    .lb-row:last-child { border-bottom: none; }
+    .lb-row:hover { background: #f8f9fa; color: inherit; }
+    .lb-rank {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 1.1rem;
+        font-weight: 900;
+        color: #dee2e6;
+        min-width: 20px;
+        text-align: center;
+    }
+    .lb-rank.top { color: #dc3545; }
+    .lb-name {
+        flex: 1;
+        font-weight: 600;
+        font-size: 0.88rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .lb-nick { font-size: 0.73rem; color: #adb5bd; font-weight: 400; }
+    .lb-stat {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #495057;
+        text-align: right;
+        min-width: 26px;
+    }
+    .lb-stat-label {
+        font-size: 0.58rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #adb5bd;
+        text-align: right;
+    }
+
+    /* Game rows */
+    .game-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0.6rem 0.5rem;
+        border-bottom: 1px solid #f1f3f5;
+        text-decoration: none;
+        color: inherit;
+        border-radius: 6px;
+        transition: background 0.1s;
+    }
+    .game-row:last-child { border-bottom: none; }
+    .game-row:hover { background: #f8f9fa; color: inherit; }
+    .game-date-day {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 1.4rem;
+        font-weight: 900;
+        color: #dc3545;
+        line-height: 1;
+        text-align: center;
+        min-width: 30px;
+    }
+    .game-date-month {
+        font-size: 0.6rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #adb5bd;
+        text-align: center;
+    }
+
+    /* Search */
+    #pub-search-input:focus {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 3px rgba(220,53,69,0.12);
+        outline: none;
+    }
+    .result-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0.5rem 0.6rem;
+        border-radius: 8px;
+        text-decoration: none;
+        color: inherit;
+        transition: background 0.1s;
+    }
+    .result-item:hover { background: #f8f9fa; }
+    .result-avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: 700;
+        color: #fff;
+        flex-shrink: 0;
+    }
+
+    @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(14px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up   { animation: fadeUp 0.45s ease both; }
+    .delay-1   { animation-delay: 0.05s; }
+    .delay-2   { animation-delay: 0.13s; }
+    .delay-3   { animation-delay: 0.21s; }
+</style>
+
+<!-- Hero -->
+<div class="hero fade-up">
+    <div class="hero-inner">
+        <div class="row align-items-center g-4">
+            <div class="col-md-7">
+                <div class="hero-eyebrow">Arnica F.Q.</div>
+                <div class="hero-title">
+                    Every Game.<br>
+                    Every <span class="accent">Goal.</span><br>
+                    Remembered.
+                </div>
+                <p class="hero-sub">
+                    A private football tracker for our group — video-synced timelines,
+                    live rosters, and player stats across every game we've ever played.
+                </p>
+                <a href="/login" class="hero-cta">
+                    <i class="bi bi-box-arrow-in-right"></i> Sign In
+                </a>
+            </div>
+            <div class="col-md-5">
+                <div class="d-flex gap-2 flex-wrap justify-content-md-end">
+                    <div class="hero-chip">
+                        <div class="hero-chip-num">{{ public_stats.total_games }}</div>
+                        <div class="hero-chip-label">Games</div>
+                    </div>
+                    <div class="hero-chip">
+                        <div class="hero-chip-num">{{ public_stats.total_goals }}</div>
+                        <div class="hero-chip-label">Goals</div>
+                    </div>
+                    <div class="hero-chip">
+                        <div class="hero-chip-num">{{ public_stats.total_players }}</div>
+                        <div class="hero-chip-label">Players</div>
+                    </div>
+                    <div class="hero-chip">
+                        <div class="hero-chip-num">{{ public_stats.total_assists }}</div>
+                        <div class="hero-chip-label">Assists</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+
+    <!-- LEFT: Top scorers + Player search -->
+    <div class="col-md-5">
+
+        <!-- Top 5 scorers -->
+        <div class="card shadow-sm mb-4 fade-up delay-1">
+            <div class="card-body pb-2">
+                <div class="pub-section-title">
+                    <i class="bi bi-trophy-fill text-warning" style="font-size:0.8rem"></i>
+                    Top Scorers
+                </div>
+                {% set colors = ['#e74c3c','#e67e22','#f1c40f','#2ecc71','#1abc9c','#3498db','#9b59b6','#e91e63'] %}
+                {% for p in top_scorers %}
+                    <a href="/player/public/{{ p.id }}" class="lb-row">
+                        <div class="lb-rank {% if loop.index <= 3 %}top{% endif %}">{{ loop.index }}</div>
+                        {% set color = colors[p.id % 8] %}
+                        {% set parts = p.name.split() %}
+                        {% set initials = (parts[0][0] + (parts[1][0] if parts|length > 1 else '')).upper() %}
+                        <span class="result-avatar" style="background:{{ color }};width:26px;height:26px;font-size:9px">{{ initials }}</span>
+                        <div class="lb-name">
+                            {{ p.nickname or p.name.split()[0] }}
+                            {% if p.nickname %}<span class="lb-nick d-block">{{ p.name }}</span>{% endif %}
+                        </div>
+                        <div class="text-end">
+                            <div class="lb-stat">{{ p.goals }}</div>
+                            <div class="lb-stat-label">goals</div>
+                        </div>
+                        <div class="text-end">
+                            <div class="lb-stat" style="color:#adb5bd;font-weight:500">{{ p.assists }}</div>
+                            <div class="lb-stat-label">ast</div>
+                        </div>
+                    </a>
+                {% else %}
+                    <p class="text-muted small text-center py-3 mb-0">No data yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Player search -->
+        <div class="card shadow-sm fade-up delay-2">
+            <div class="card-body">
+                <div class="pub-section-title">
+                    <i class="bi bi-person-search" style="font-size:0.8rem"></i>
+                    Find a Player
+                </div>
+                <div class="input-group input-group-sm mb-2">
+                    <span class="input-group-text bg-white border-end-0">
+                        <i class="bi bi-search text-muted" style="font-size:0.7rem"></i>
+                    </span>
+                    <input type="text"
+                           id="pub-search-input"
+                           class="form-control border-start-0 ps-0"
+                           placeholder="Type a name…"
+                           autocomplete="off">
+                </div>
+                <div id="pub-search-results"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- RIGHT: Recent games -->
+    <div class="col-md-7 fade-up delay-3">
+        <div class="card shadow-sm">
+            <div class="card-body pb-2">
+                <div class="pub-section-title">
+                    <i class="bi bi-calendar3" style="font-size:0.8rem"></i>
+                    Recent Games
+                </div>
+                {% set months = ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'] %}
+                {% for game in recent_games_public %}
+                    <a href="/login" class="game-row" title="Sign in to view">
+                        <div style="min-width:32px">
+                            <div class="game-date-day">{{ game.date.day if game.date else '??' }}</div>
+                            <div class="game-date-month">{{ game.date.strftime('%m') if game.date else '' }}</div>
+                        </div>
+                        <div class="border-start ps-2 flex-grow-1" style="border-color:#e9ecef!important">
+                            <div class="fw-semibold" style="font-size:0.88rem">{{ game.title }}</div>
+                            <div class="text-muted" style="font-size:0.73rem">
+                                <i class="bi bi-geo-alt" style="font-size:0.62rem"></i> {{ game.location }}
+                                &nbsp;·&nbsp;
+                                <i class="bi bi-people" style="font-size:0.62rem"></i> {{ game.player_count }} players
+                            </div>
+                        </div>
+                        {% if game.total_goals > 0 %}
+                            <div class="text-end flex-shrink-0" style="min-width:36px">
+                                <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.2rem;font-weight:900;line-height:1;color:#343a40">
+                                    {{ game.total_goals }}
+                                </div>
+                                <div style="font-size:0.58rem;text-transform:uppercase;letter-spacing:0.05em;color:#adb5bd">goals</div>
+                            </div>
+                        {% endif %}
+                        <i class="bi bi-lock text-muted" style="font-size:0.65rem;flex-shrink:0"></i>
+                    </a>
+                {% else %}
+                    <p class="text-muted small text-center py-3 mb-0">No games yet.</p>
+                {% endfor %}
+
+                <div class="text-center pt-3 pb-1">
+                    <a href="/login" class="btn btn-sm btn-outline-danger" style="font-size:0.8rem;border-radius:8px">
+                        <i class="bi bi-box-arrow-in-right"></i> Sign in to see full details
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const palette = ['#e74c3c','#e67e22','#f1c40f','#2ecc71','#1abc9c','#3498db','#9b59b6','#e91e63'];
+    const input   = document.getElementById('pub-search-input');
+    const results = document.getElementById('pub-search-results');
+    let timer     = null;
+
+    input.addEventListener('input', function() {
+        clearTimeout(timer);
+        const q = this.value.trim();
+        if (q.length < 2) { results.innerHTML = ''; return; }
+
+        timer = setTimeout(() => {
+            fetch(`/api/players/search?q=${encodeURIComponent(q)}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.length) {
+                        results.innerHTML = '<p class="text-muted small text-center py-2 mb-0">No players found.</p>';
+                        return;
+                    }
+                    results.innerHTML = data.map(p => {
+                        const initials = p.name.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase();
+                        const color    = palette[p.id % 8];
+                        const label    = p.nickname
+                            ? `<span class="fw-semibold" style="font-size:0.87rem">${p.nickname}</span> <span class="text-muted" style="font-size:0.73rem">${p.name}</span>`
+                            : `<span class="fw-semibold" style="font-size:0.87rem">${p.name}</span>`;
+                        return `
+                            <a href="/player/public/${p.id}" class="result-item">
+                                <span class="result-avatar" style="background:${color}">${initials}</span>
+                                <div>
+                                    <div>${label}</div>
+                                    <div class="text-muted" style="font-size:0.71rem">${p.goals}G &middot; ${p.assists}A &middot; ${p.appearances} games</div>
+                                </div>
+                            </a>`;
+                    }).join('');
+                });
+        }, 250);
+    });
+</script>
+
+
+{% else %}
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- LOGGED IN DASHBOARD                                    -->
+<!-- ═══════════════════════════════════════════════════════ -->
+
 {% if not linked %}
     <div class="text-center mb-5">
         <h2>Welcome to Arnica F.Q.</h2>
@@ -46,7 +506,6 @@
         <p class="text-muted">Here's your football summary.</p>
     </div>
 
-    <!-- Stat boxes -->
     <div class="row g-3 mb-4">
         <div class="col-4">
             <div class="stat-box">
@@ -68,7 +527,6 @@
         </div>
     </div>
 
-    <!-- Video panel -->
     {% if index_youtube_embed %}
         <div class="card shadow-sm mb-4" id="video-card">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
@@ -94,15 +552,11 @@
     {% endif %}
 
     <div class="row g-4">
-
-        <!-- Recent goals & highlights -->
         <div class="col-md-8">
             <div class="card shadow-sm">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
                     <span><i class="bi bi-star"></i> My Goals &amp; Highlights</span>
-                    <a href="/player/{{ person.id }}" class="text-muted small text-decoration-none">
-                        View all <i class="bi bi-chevron-right"></i>
-                    </a>
+                    <a href="/player/{{ person.id }}" class="text-muted small text-decoration-none">View all <i class="bi bi-chevron-right"></i></a>
                 </div>
                 <div class="card-body p-0">
                     {% if recent_events %}
@@ -111,13 +565,10 @@
                                 {% set parts = event.timestamp.split(':') %}
                                 {% set total_seconds = parts[0]|int * 3600 + parts[1]|int * 60 + parts[2]|int %}
                                 <div class="event-row">
-                                    <span class="text-muted font-monospace" style="font-size:0.7rem;min-width:fit-content">
-                                        {{ event.game_date }}
-                                    </span>
+                                    <span class="text-muted font-monospace" style="font-size:0.7rem;min-width:fit-content">{{ event.game_date }}</span>
                                     <span class="event-timestamp font-monospace">
                                         {% if event.youtube_embed %}
-                                            <a href="#"
-                                               class="text-decoration-none text-muted"
+                                            <a href="#" class="text-decoration-none text-muted"
                                                onclick="seekVideo('{{ event.youtube_embed }}', {{ total_seconds }}, '{{ event.game_id }}', event); return false;"
                                                data-game-id="{{ event.game_id }}"
                                                data-game-title="{{ event.game_title }}"
@@ -130,20 +581,14 @@
                                             <span class="text-muted">{{ event.timestamp }}</span>
                                         {% endif %}
                                     </span>
-                                    <span class="badge event-type-badge badge-{{ event.type }} text-white">
-                                        {{ event.type }}
-                                    </span>
+                                    <span class="badge event-type-badge badge-{{ event.type }} text-white">{{ event.type }}</span>
                                     <span class="flex-grow-1 small">
-                                        <a href="/games/{{ event.game_id }}" class="text-decoration-none text-muted">
-                                            {{ event.game_title }}
-                                        </a>
+                                        <a href="/games/{{ event.game_id }}" class="text-decoration-none text-muted">{{ event.game_title }}</a>
                                         {% for link in event.links %}
                                             <span class="text-muted ms-1">&middot; {{ link.link_type }}: {{ link.name }}</span>
                                         {% endfor %}
                                     </span>
-                                    {% if event.notes %}
-                                        <span class="text-muted small fst-italic">{{ event.notes }}</span>
-                                    {% endif %}
+                                    {% if event.notes %}<span class="text-muted small fst-italic">{{ event.notes }}</span>{% endif %}
                                 </div>
                             {% endfor %}
                         </div>
@@ -157,23 +602,18 @@
             </div>
         </div>
 
-        <!-- Recent games -->
         <div class="col-md-4">
             <div class="card shadow-sm">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
                     <span><i class="bi bi-calendar3"></i> Recent Games</span>
-                    <a href="/games" class="text-muted small text-decoration-none">
-                        All <i class="bi bi-chevron-right"></i>
-                    </a>
+                    <a href="/games" class="text-muted small text-decoration-none">All <i class="bi bi-chevron-right"></i></a>
                 </div>
                 <div class="card-body p-0">
                     {% if recent_games %}
                         <ul class="list-group list-group-flush">
                             {% for game in recent_games %}
                                 <li class="list-group-item px-3 py-2">
-                                    <a href="/games/{{ game.id }}" class="text-decoration-none fw-semibold">
-                                        {{ game.title }}
-                                    </a>
+                                    <a href="/games/{{ game.id }}" class="text-decoration-none fw-semibold">{{ game.title }}</a>
                                     <div class="text-muted small">{{ game.date }} &middot; {{ game.location }}</div>
                                 </li>
                             {% endfor %}
@@ -184,92 +624,50 @@
                 </div>
             </div>
         </div>
-
     </div>
 
     {% if index_youtube_embed %}
     <script>
-        // Track currently loaded game
-        let currentGameId   = "{{ recent_video_game.id }}";
-        let currentEmbed    = "{{ index_youtube_embed }}";
-        let ytPlayer        = null;
-        let pendingSeek     = null;  // seek after video loads when swapping
+        let currentGameId = "{{ recent_video_game.id }}";
+        let ytPlayer = null;
+        let pendingSeek = null;
 
-        // YT IFrame API
         window.onYouTubeIframeAPIReady = function() {
             ytPlayer = new YT.Player('yt-player', {
-                events: {
-                    onReady: onPlayerReady,
-                    onStateChange: onStateChange,
-                }
+                events: { onReady: onPlayerReady, onStateChange: onStateChange }
             });
         };
-
         function onPlayerReady() {
-            if (pendingSeek !== null) {
-                ytPlayer.seekTo(pendingSeek, true);
-                ytPlayer.playVideo();
-                pendingSeek = null;
-            }
+            if (pendingSeek !== null) { ytPlayer.seekTo(pendingSeek, true); ytPlayer.playVideo(); pendingSeek = null; }
         }
-
-        // Re-fire onReady equivalent when video is cued after src swap
         function onStateChange(e) {
-            // YT.PlayerState.CUED = 5
-            if (e.data === 5 && pendingSeek !== null) {
-                ytPlayer.seekTo(pendingSeek, true);
-                ytPlayer.playVideo();
-                pendingSeek = null;
-            }
+            if (e.data === 5 && pendingSeek !== null) { ytPlayer.seekTo(pendingSeek, true); ytPlayer.playVideo(); pendingSeek = null; }
         }
-
         function seekVideo(embedUrl, seconds, gameId, e) {
             e.preventDefault();
-
-            const videoCard = document.getElementById('video-card');
-
-            // Show video panel if hidden (e.g. no default video)
-            if (videoCard) videoCard.style.display = '';
-
             if (gameId === currentGameId) {
-                // Same game — just seek
-                if (ytPlayer && ytPlayer.seekTo) {
-                    ytPlayer.seekTo(seconds, true);
-                    ytPlayer.playVideo();
-                }
+                if (ytPlayer && ytPlayer.seekTo) { ytPlayer.seekTo(seconds, true); ytPlayer.playVideo(); }
             } else {
-                // Different game — swap video then seek after load
-                pendingSeek   = seconds;
-                currentGameId = gameId;
-                currentEmbed  = embedUrl;
-
-                // Update label + link in card header
-                const link  = e.target.closest('[data-game-id]') || e.target;
+                pendingSeek = seconds; currentGameId = gameId;
                 const anchor = document.getElementById('video-game-link');
                 const label  = document.getElementById('video-game-label');
+                const link   = e.target.closest('[data-game-id]') || e.target;
                 if (anchor) anchor.href = `/games/${gameId}`;
                 if (label)  label.textContent = `${link.dataset.gameTitle} · ${link.dataset.gameDate}`;
-
-                // Load new video — cueVideoById triggers onStateChange(CUED=5)
                 if (ytPlayer && ytPlayer.cueVideoById) {
-                    // Extract video ID from embed URL
-                    const vid = embedUrl.split('/embed/')[1].split('?')[0];
-                    ytPlayer.cueVideoById(vid, seconds);
+                    ytPlayer.cueVideoById(embedUrl.split('/embed/')[1].split('?')[0], seconds);
                 } else {
-                    // Fallback: replace iframe src
-                    const iframe = document.getElementById('yt-player');
-                    iframe.src = embedUrl + '&autoplay=1&start=' + seconds;
+                    document.getElementById('yt-player').src = embedUrl + '&autoplay=1&start=' + seconds;
                     pendingSeek = null;
                 }
             }
-
-            // Scroll to video
             document.getElementById('video-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
     </script>
     <script src="https://www.youtube.com/iframe_api"></script>
     {% endif %}
 
+{% endif %}
 {% endif %}
 
 {% endblock %}

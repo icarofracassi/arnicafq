@@ -1,7 +1,6 @@
 import os
 import re
 import io
-from supabase import create_client
 from itertools import groupby
 from collections import OrderedDict, defaultdict
 
@@ -12,14 +11,14 @@ from sqlalchemy import text
 from werkzeug.security import check_password_hash, generate_password_hash
 from PIL import Image
 from dotenv import load_dotenv
+from supabase import create_client
+load_dotenv()
 
 from helpers import apology, login_required, role_required, dateformat
 
 supabase_url = os.environ.get("SUPABASE_URL")
 supabase_key = os.environ.get("SUPABASE_SERVICE_KEY")
 supabase = create_client(supabase_url, supabase_key)
-
-load_dotenv()
 
 # Configure application
 app = Flask(__name__)
@@ -373,12 +372,60 @@ def after_request(response):
 # ── Routes ─────────────────────────────────────────────────────────────────────
 
 @app.route("/")
-@login_required
 def index():
-    """Personal dashboard — show user's stats and recent events."""
-
+    """Home — public landing for guests, personal dashboard for logged-in users."""
+ 
+    # ── Public data (always computed, needed for landing page) ─────────────
+    public_stats = query("""
+        SELECT
+            (SELECT COUNT(*) FROM games)                          AS total_games,
+            (SELECT COUNT(*) FROM events WHERE type = 'goal')    AS total_goals,
+            (SELECT COUNT(*) FROM people)                        AS total_players,
+            (SELECT COUNT(*) FROM event_links WHERE link_type = 'assist') AS total_assists
+    """)[0]
+ 
+    recent_games_public = query("""
+        SELECT
+            g.id, g.title, g.date,
+            l.name AS location,
+            COUNT(DISTINCT pr.person_id) AS player_count,
+            COUNT(DISTINCT CASE WHEN e.type = 'goal' THEN e.id END) AS total_goals
+        FROM games g
+        JOIN locations l ON l.id = g.location_id
+        LEFT JOIN presences pr ON pr.game_id = g.id
+        LEFT JOIN events e     ON e.game_id  = g.id
+        GROUP BY g.id, g.title, g.date, l.name
+        ORDER BY g.date DESC
+        LIMIT 8
+    """)
+ 
+    top_scorers = query("""
+        SELECT
+            p.id, p.name, p.nickname,
+            COUNT(DISTINCT CASE WHEN e.type = 'goal'         THEN e.id  END) AS goals,
+            COUNT(DISTINCT CASE WHEN el.link_type = 'assist' THEN el.id END) AS assists,
+            COUNT(DISTINCT pr.game_id) AS appearances
+        FROM people p
+        LEFT JOIN events e       ON e.person_id         = p.id
+        LEFT JOIN event_links el ON el.linked_person_id = p.id
+        LEFT JOIN presences pr   ON pr.person_id        = p.id
+        GROUP BY p.id, p.name, p.nickname
+        HAVING COUNT(DISTINCT pr.game_id) > 0
+        ORDER BY goals DESC, assists DESC
+        LIMIT 5
+    """)
+ 
+    # ── Not logged in — render public landing ──────────────────────────────
+    if not session.get("user_id"):
+        return render_template("index.html",
+            public_stats=public_stats,
+            recent_games_public=recent_games_public,
+            top_scorers=top_scorers,
+        )
+ 
+    # ── Logged in — personal dashboard ────────────────────────────────────
     person_id = session.get("person_id")
-
+ 
     if not person_id:
         recent_games = query("""
             SELECT g.id, g.title, g.date, l.name AS location
@@ -387,10 +434,16 @@ def index():
             ORDER BY g.date DESC
             LIMIT 5
         """)
-        return render_template("index.html", linked=False, recent_games=recent_games)
-
+        return render_template("index.html",
+            linked=False,
+            recent_games=recent_games,
+            public_stats=public_stats,
+            recent_games_public=recent_games_public,
+            top_scorers=top_scorers,
+        )
+ 
     person = query("SELECT * FROM people WHERE id = :id", {"id": person_id})[0]
-
+ 
     stats = query("""
         SELECT
             COUNT(DISTINCT CASE WHEN e.type = 'goal' THEN e.id END) AS goals,
@@ -402,7 +455,7 @@ def index():
         LEFT JOIN presences pr   ON pr.person_id = p.id
         WHERE p.id = :person_id
     """, {"person_id": person_id})[0]
-
+ 
     recent_events = query("""
         SELECT
             e.*,
@@ -416,7 +469,7 @@ def index():
         ORDER BY g.date DESC, e.timestamp ASC
         LIMIT 10
     """, {"person_id": person_id})
-
+ 
     def build_embed_url(raw_url):
         if not raw_url:
             return None
@@ -430,7 +483,7 @@ def index():
         else:
             return None
         return f"https://www.youtube.com/embed/{vid}?enablejsapi=1"
-
+ 
     for event in recent_events:
         event["links"] = query("""
             SELECT el.link_type, pe.name
@@ -439,7 +492,7 @@ def index():
             WHERE el.event_id = :event_id
         """, {"event_id": event["id"]})
         event["youtube_embed"] = build_embed_url(event.get("youtube_url"))
-
+ 
     recent_games = query("""
         SELECT g.id, g.title, g.date, l.name AS location
         FROM presences pr
@@ -449,7 +502,7 @@ def index():
         ORDER BY g.date DESC
         LIMIT 5
     """, {"person_id": person_id})
-
+ 
     recent_video_game = query("""
         SELECT g.id, g.title, g.date, g.youtube_url
         FROM presences pr
@@ -459,9 +512,8 @@ def index():
         LIMIT 1
     """, {"person_id": person_id})
     recent_video_game = recent_video_game[0] if recent_video_game else None
-
     index_youtube_embed = build_embed_url(recent_video_game["youtube_url"]) if recent_video_game else None
-
+ 
     return render_template("index.html",
         linked=True,
         person=person,
@@ -470,8 +522,122 @@ def index():
         recent_games=recent_games,
         recent_video_game=recent_video_game,
         index_youtube_embed=index_youtube_embed,
+        public_stats=public_stats,
+        recent_games_public=recent_games_public,
+        top_scorers=top_scorers,
     )
-
+ 
+ 
+# ── PATCH 2: Public player search API ─────────────────────────────────────────
+# Add this new route anywhere after the index route.
+ 
+@app.route("/api/players/search")
+def api_players_search():
+    """Public JSON search for players by name/nickname."""
+    q = request.args.get("q", "").strip()
+    if len(q) < 2:
+        return jsonify([])
+ 
+    like = f"%{q}%"
+    players = query("""
+        SELECT
+            p.id, p.name, p.nickname,
+            COUNT(DISTINCT CASE WHEN e.type = 'goal'         THEN e.id  END) AS goals,
+            COUNT(DISTINCT CASE WHEN el.link_type = 'assist' THEN el.id END) AS assists,
+            COUNT(DISTINCT pr.game_id) AS appearances
+        FROM people p
+        LEFT JOIN events e       ON e.person_id         = p.id
+        LEFT JOIN event_links el ON el.linked_person_id = p.id
+        LEFT JOIN presences pr   ON pr.person_id        = p.id
+        WHERE p.name ILIKE :like OR p.nickname ILIKE :like
+        GROUP BY p.id, p.name, p.nickname
+        ORDER BY appearances DESC, p.name
+        LIMIT 8
+    """, {"like": like})
+ 
+    return jsonify([dict(p) for p in players])
+ 
+ 
+# ── PATCH 3: Public player profile page ───────────────────────────────────────
+# Add this route. It shows a read-only player profile without login.
+# The existing /player/<id> route stays unchanged for logged-in users.
+ 
+@app.route("/player/public/<int:person_id>")
+def player_public(person_id):
+    """Public (no login required) read-only player profile."""
+    person = query("SELECT * FROM people WHERE id = :id", {"id": person_id})
+    if not person:
+        return apology("Player not found", 404)
+    person = person[0]
+ 
+    stats = query("""
+        SELECT
+            COUNT(DISTINCT CASE WHEN e.type = 'goal'         THEN e.id  END) AS goals,
+            COUNT(DISTINCT CASE WHEN el.link_type = 'assist' THEN el.id END) AS assists,
+            COUNT(DISTINCT pr.game_id) AS appearances
+        FROM people p
+        LEFT JOIN events e       ON e.person_id         = p.id
+        LEFT JOIN event_links el ON el.linked_person_id = p.id
+        LEFT JOIN presences pr   ON pr.person_id        = p.id
+        WHERE p.id = :person_id
+    """, {"person_id": person_id})[0]
+ 
+    cache = query("""
+        SELECT field_seconds, gk_seconds
+        FROM player_stats_cache WHERE person_id = :person_id
+    """, {"person_id": person_id})
+    field_seconds = cache[0]["field_seconds"] if cache else 0
+    gk_seconds    = cache[0]["gk_seconds"]    if cache else 0
+ 
+    top_events = query("""
+        SELECT e.type, e.timestamp, e.notes,
+               g.id AS game_id, g.title AS game_title, g.date AS game_date,
+               g.youtube_url
+        FROM events e
+        JOIN games g ON g.id = e.game_id
+        WHERE e.person_id = :person_id AND e.type IN ('goal', 'highlight')
+        ORDER BY g.date DESC, e.timestamp ASC
+        LIMIT 10
+    """, {"person_id": person_id})
+ 
+    def build_embed_url(raw_url):
+        if not raw_url:
+            return None
+        if "youtube.com/embed/" in raw_url:
+            sep = "&" if "?" in raw_url else "?"
+            return raw_url + sep + "enablejsapi=1"
+        if "youtu.be/" in raw_url:
+            vid = raw_url.split("youtu.be/")[1].split("?")[0]
+        elif "v=" in raw_url:
+            vid = raw_url.split("v=")[1].split("&")[0]
+        else:
+            return None
+        return f"https://www.youtube.com/embed/{vid}?enablejsapi=1"
+ 
+    for event in top_events:
+        event["youtube_embed"] = build_embed_url(event.get("youtube_url"))
+ 
+    # Most recent game with video for the iframe default
+    recent_video = query("""
+        SELECT g.id, g.title, g.date, g.youtube_url
+        FROM presences pr
+        JOIN games g ON g.id = pr.game_id
+        WHERE pr.person_id = :person_id
+          AND g.youtube_url IS NOT NULL AND g.youtube_url != ''
+        ORDER BY g.date DESC LIMIT 1
+    """, {"person_id": person_id})
+    recent_video      = recent_video[0] if recent_video else None
+    player_youtube_embed = build_embed_url(recent_video["youtube_url"]) if recent_video else None
+ 
+    return render_template("player_public.html",
+        person=person,
+        stats=stats,
+        field_seconds=field_seconds,
+        gk_seconds=gk_seconds,
+        top_events=top_events,
+        recent_video=recent_video,
+        player_youtube_embed=player_youtube_embed,
+    )
 
 @app.route("/schema")
 def schema():

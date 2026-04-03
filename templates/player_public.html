@@ -1,0 +1,214 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ person.nickname or person.name }}{% endblock %}
+
+{% block main %}
+
+{% set colors = ['#e74c3c','#e67e22','#f1c40f','#2ecc71','#1abc9c','#3498db','#9b59b6','#e91e63'] %}
+{% set color = colors[person.id % 8] %}
+{% set parts = person.name.split() %}
+{% set initials = (parts[0][0] + (parts[1][0] if parts|length > 1 else '')).upper() %}
+
+<!-- Header -->
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <a href="/" class="text-muted small text-decoration-none">
+            <i class="bi bi-arrow-left"></i> Home
+        </a>
+        <h2 class="mt-1 mb-0">{{ person.nickname or person.name }}</h2>
+        {% if person.nickname %}
+            <div class="text-muted small">{{ person.name }}</div>
+        {% endif %}
+    </div>
+    <span style="width:52px;height:52px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;background:{{ color }};flex-shrink:0">
+        {{ initials }}
+    </span>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-3">
+    <div class="col-4">
+        <div class="stat-box">
+            <div class="stat-number">{{ stats.goals }}</div>
+            <div class="stat-label">Goals</div>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="stat-box">
+            <div class="stat-number">{{ stats.assists }}</div>
+            <div class="stat-label">Assists</div>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="stat-box">
+            <div class="stat-number">{{ stats.appearances }}</div>
+            <div class="stat-label">Games</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6">
+        <div class="stat-box">
+            {% set fh = (field_seconds // 3600) %}
+            {% set fm = ((field_seconds % 3600) // 60) %}
+            <div class="stat-number" style="font-size:1.4rem">{{ '%d:%02d'|format(fh, fm) }}</div>
+            <div class="stat-label">Field Time</div>
+        </div>
+    </div>
+    <div class="col-6">
+        <div class="stat-box">
+            {% set gh = (gk_seconds // 3600) %}
+            {% set gm = ((gk_seconds % 3600) // 60) %}
+            <div class="stat-number" style="font-size:1.4rem">{{ '%d:%02d'|format(gh, gm) }}</div>
+            <div class="stat-label">GK Time</div>
+        </div>
+    </div>
+</div>
+
+{% if player_youtube_embed %}
+<!-- Video card -->
+<div class="card shadow-sm mb-4" id="video-card">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-play-circle text-danger"></i> Game Film</span>
+        <span class="text-muted small" id="video-label">
+            {{ recent_video.title }} &middot; {{ recent_video.date }}
+        </span>
+    </div>
+    <div class="card-body p-0">
+        <div class="ratio ratio-16x9">
+            <iframe id="yt-player"
+                    src="{{ player_youtube_embed }}"
+                    title="Game video"
+                    frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    referrerpolicy="strict-origin-when-cross-origin"
+                    allowfullscreen>
+            </iframe>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Goals & Highlights timeline -->
+{% if top_events %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-white">
+        <span><i class="bi bi-star"></i> Goals &amp; Highlights</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="event-timeline px-3 pt-2 pb-1">
+            {% for event in top_events %}
+                {% set parts = event.timestamp.split(':') %}
+                {% set total_seconds = parts[0]|int * 3600 + parts[1]|int * 60 + parts[2]|int %}
+                <div class="event-row">
+                    <span class="text-muted font-monospace" style="font-size:0.7rem;min-width:fit-content">
+                        {{ event.game_date }}
+                    </span>
+
+                    <span class="event-timestamp font-monospace">
+                        {% if event.youtube_embed %}
+                            <a href="#"
+                               class="text-decoration-none text-primary"
+                               style="cursor:pointer"
+                               onclick="seekVideo('{{ event.youtube_embed }}', {{ total_seconds }}, '{{ event.game_title }}', '{{ event.game_date }}'); return false;">
+                                {{ event.timestamp }}
+                                <i class="bi bi-play-fill text-danger" style="font-size:0.6rem"></i>
+                            </a>
+                        {% else %}
+                            <span class="text-muted">{{ event.timestamp }}</span>
+                        {% endif %}
+                    </span>
+
+                    <span class="badge event-type-badge badge-{{ event.type }} text-white">{{ event.type }}</span>
+
+                    <span class="flex-grow-1 small text-muted">{{ event.game_title }}</span>
+
+                    {% if event.notes %}
+                        <span class="text-muted small fst-italic">{{ event.notes }}</span>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- CTA -->
+<div class="card border-0 bg-light text-center py-4">
+    <div class="card-body">
+        <p class="mb-2 text-muted" style="font-size:0.9rem">
+            <i class="bi bi-lock"></i> Sign in to see the full profile, per-game stats and more.
+        </p>
+        <a href="/login" class="btn btn-danger btn-sm">
+            <i class="bi bi-box-arrow-in-right"></i> Sign In
+        </a>
+    </div>
+</div>
+
+{% if player_youtube_embed %}
+<script>
+    let currentEmbed = "{{ player_youtube_embed }}";
+    let ytPlayer     = null;
+    let pendingSeek  = null;
+
+    window.onYouTubeIframeAPIReady = function() {
+        ytPlayer = new YT.Player('yt-player', {
+            events: {
+                onReady:       onPlayerReady,
+                onStateChange: onStateChange,
+            }
+        });
+    };
+
+    function onPlayerReady() {
+        if (pendingSeek !== null) {
+            ytPlayer.seekTo(pendingSeek, true);
+            ytPlayer.playVideo();
+            pendingSeek = null;
+        }
+    }
+
+    function onStateChange(e) {
+        // YT.PlayerState.CUED = 5 — fires after cueVideoById loads
+        if (e.data === 5 && pendingSeek !== null) {
+            ytPlayer.seekTo(pendingSeek, true);
+            ytPlayer.playVideo();
+            pendingSeek = null;
+        }
+    }
+
+    function seekVideo(embedUrl, seconds, gameTitle, gameDate) {
+        const label = document.getElementById('video-label');
+
+        if (embedUrl === currentEmbed) {
+            // Same video — just seek
+            if (ytPlayer && ytPlayer.seekTo) {
+                ytPlayer.seekTo(seconds, true);
+                ytPlayer.playVideo();
+            }
+        } else {
+            // Different game video — swap then seek after load
+            pendingSeek  = seconds;
+            currentEmbed = embedUrl;
+
+            if (label) label.textContent = `${gameTitle} · ${gameDate}`;
+
+            if (ytPlayer && ytPlayer.cueVideoById) {
+                const vid = embedUrl.split('/embed/')[1].split('?')[0];
+                ytPlayer.cueVideoById(vid, seconds);
+            } else {
+                // Fallback
+                document.getElementById('yt-player').src = embedUrl + '&autoplay=1&start=' + seconds;
+                pendingSeek = null;
+            }
+        }
+
+        // Scroll to video
+        document.getElementById('video-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+</script>
+<script src="https://www.youtube.com/iframe_api"></script>
+{% endif %}
+
+{% endblock %}
