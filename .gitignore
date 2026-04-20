@@ -11,3 +11,9 @@ static/uploads/players/*
 !static/uploads/players/.gitkeep
 package-lock.json
 package.json
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
